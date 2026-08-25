@@ -19,7 +19,10 @@ def deterministic_intent(message: str) -> Intent:
         return "end"
     if any(word in text for word in ("câmbio", "cambio", "dólar", "dolar", "euro", "usd", "eur")):
         return "exchange"
-    if "aumento" in text or "aumentar" in text:
+    if any(
+        phrase in text
+        for phrase in ("aumento", "aumentar", "subir", "mais limite", "limite maior", "elevar")
+    ):
         return "increase"
     if "limite" in text:
         return "limit"
@@ -52,14 +55,17 @@ class IntentService:
             self.structured_llm = None
 
     def classify(self, message: str) -> Intent:
-        if self.structured_llm is None:
-            return deterministic_intent(message)
+        fallback = deterministic_intent(message)
+        # Clear requests for more credit should not depend on LLM availability or phrasing variance.
+        if fallback == "increase" or self.structured_llm is None:
+            return fallback
         try:
             result = self.structured_llm.invoke(
                 "Classifique a intenção do cliente bancário em exatamente uma categoria: "
                 "limit (consultar limite), increase (aumentar limite), interview "
                 "(entrevista financeira), exchange (cotação de moeda), end (encerrar) ou "
-                f"unsupported. Mensagem: {message!r}"
+                "unsupported. Use increase, e não limit, quando o cliente pedir para aumentar, "
+                f"subir ou obter mais limite. Mensagem: {message!r}"
             )
             parsed = (
                 result if isinstance(result, IntentResult) else IntentResult.model_validate(result)
@@ -70,4 +76,4 @@ class IntentService:
             logger.warning(
                 "LLM intent classification failed; using deterministic fallback: %s", error
             )
-            return deterministic_intent(message)
+            return fallback
