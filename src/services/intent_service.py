@@ -34,13 +34,19 @@ class IntentService:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "gemini-2.0-flash",
+        model: str = "gemini-3.6-flash",
         structured_llm: Any | None = None,
     ):
         if structured_llm is not None:
             self.structured_llm = structured_llm
         elif api_key:
-            llm = ChatGoogleGenerativeAI(model=model, api_key=api_key, temperature=0)
+            llm = ChatGoogleGenerativeAI(
+                model=model,
+                api_key=api_key,
+                temperature=0,
+                retries=1,
+                request_timeout=10,
+            )
             self.structured_llm = llm.with_structured_output(IntentResult)
         else:
             self.structured_llm = None
