@@ -9,9 +9,10 @@ from src.exceptions import CreditRequestPersistenceError
 from src.graph.state import BankingState
 from src.repositories import CreditRequestRepository, CustomerRepository
 from src.services import CreditService, CustomerService, ExchangeService, IntentService
-from src.services.intent_service import AgentDecisionService, deterministic_intent
+from src.services.intent_service import AgentDecisionService
 from src.tools.authentication import looks_like_birth_date_input, normalize_cpf
 from src.tools.conversation import end_conversation
+from src.tools.intents import deterministic_intent
 from src.tools.responses import (
     AUTH_BIRTH_DATE_MESSAGE,
     AUTH_REQUIRED_MESSAGE,
