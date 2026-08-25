@@ -56,8 +56,8 @@ class IntentService:
 
     def classify(self, message: str) -> Intent:
         fallback = deterministic_intent(message)
-        # Clear requests for more credit should not depend on LLM availability or phrasing variance.
-        if fallback == "increase" or self.structured_llm is None:
+        # Clear banking commands should respond promptly; Gemini handles ambiguous language.
+        if fallback != "unsupported" or self.structured_llm is None:
             return fallback
         try:
             result = self.structured_llm.invoke(
