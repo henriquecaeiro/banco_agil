@@ -27,6 +27,10 @@ CAPABILITIES_MESSAGE = (
     "Posso ajudar com limite de crédito, aumento de limite, entrevista financeira ou câmbio."
 )
 
+CLARIFY_LIMIT_MESSAGE = (
+    "Você deseja consultar seu limite atual ou solicitar um aumento?"
+)
+
 BANKING_OUT_OF_SCOPE_KEYWORDS = (
     "pix",
     "empréstimo",
