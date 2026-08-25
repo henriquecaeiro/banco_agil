@@ -60,7 +60,7 @@ tests                  testes unitários e de integração
 
 ## Tecnologias Utilizadas
 
-Python 3.11+, Streamlit, LangGraph, Gemini, Pydantic, pandas, httpx, python-dotenv e pytest. Quando configurado, Gemini interpreta a intenção em uma saída estruturada; sem chave ou em caso de falha, o roteamento usa um fallback determinístico.
+Python 3.11+ (testado em 3.11–3.14), Streamlit, LangGraph, Gemini, Pydantic, pandas, httpx, python-dotenv e pytest. Quando configurado, Gemini interpreta a intenção em uma saída estruturada; sem chave ou em caso de falha, o roteamento usa um fallback determinístico. LangGraph 1.2+ evita warnings de serialização presentes em versões anteriores.
 
 ## Escolhas Técnicas e Justificativas
 

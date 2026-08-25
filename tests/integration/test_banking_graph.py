@@ -1,8 +1,11 @@
 import csv
 from pathlib import Path
+from unittest.mock import patch
 
 import httpx
+import pytest
 
+from src.exceptions import CreditRequestPersistenceError
 from src.graph import BankingGraph
 from src.services import ExchangeService
 from src.services.intent_service import IntentService
@@ -62,6 +65,72 @@ def test_formatted_high_credit_request_reaches_rejection_and_persists(tmp_path: 
     assert len(rows) == 1
     assert rows[0]["novo_limite_solicitado"] == "150000"
     assert rows[0]["status_pedido"] == "rejeitado"
+
+
+@pytest.mark.parametrize("amount", ["R$ 150.000,00", "150000"])
+def test_high_credit_request_formats_persist_and_analyze(tmp_path: Path, amount: str) -> None:
+    setup_data(tmp_path)
+    graph, state = build_test_graph(tmp_path), {}
+    for message in ("11144477735", "15/05/1990", "quero aumento de limite"):
+        state = graph.invoke(state, message)
+
+    state = graph.invoke(state, amount)
+
+    assert state["current_agent"] == "offer_interview"
+    with (tmp_path / "solicitacoes_aumento_limite.csv").open(
+        encoding="utf-8", newline=""
+    ) as file:
+        rows = list(csv.DictReader(file))
+    assert len(rows) == 1
+    assert rows[0]["novo_limite_solicitado"] in {"150000", "150000.00"}
+
+
+def test_persistence_failure_keeps_retry_flow(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph, state = build_test_graph(tmp_path), {}
+    for message in ("11144477735", "15/05/1990", "quero aumento de limite"):
+        state = graph.invoke(state, message)
+
+    repository = graph.credit.credit_service.request_repository
+    with patch.object(repository, "save", side_effect=CreditRequestPersistenceError("locked")):
+        state = graph.invoke(state, "R$ 150.000")
+
+    assert state["current_agent"] == "awaiting_limit"
+    assert "registrar sua solicitação" in state["response"]
+    with (tmp_path / "solicitacoes_aumento_limite.csv").open(
+        encoding="utf-8", newline=""
+    ) as file:
+        assert list(csv.DictReader(file)) == []
+
+
+def test_credit_request_succeeds_after_persistence_failure(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph, state = build_test_graph(tmp_path), {}
+    for message in ("11144477735", "15/05/1990", "quero aumento de limite"):
+        state = graph.invoke(state, message)
+
+    repository = graph.credit.credit_service.request_repository
+    real_save = repository.save
+    attempts = {"count": 0}
+
+    def flaky_save(request):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise CreditRequestPersistenceError("locked")
+        real_save(request)
+
+    with patch.object(repository, "save", side_effect=flaky_save):
+        state = graph.invoke(state, "R$ 150.000")
+        assert state["current_agent"] == "awaiting_limit"
+
+    state = graph.invoke(state, "R$ 150.000")
+    assert state["current_agent"] == "offer_interview"
+    with (tmp_path / "solicitacoes_aumento_limite.csv").open(
+        encoding="utf-8", newline=""
+    ) as file:
+        rows = list(csv.DictReader(file))
+    assert len(rows) == 1
+    assert rows[0]["novo_limite_solicitado"] == "150000"
 
 
 def test_invalid_credit_amount_stays_in_retry_flow_without_persistence(tmp_path: Path) -> None:

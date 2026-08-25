@@ -1,7 +1,9 @@
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+from src.exceptions import CreditRequestPersistenceError
 from src.models import Customer
 from src.repositories import CreditRequestRepository
 from src.services import CreditService
@@ -86,3 +88,28 @@ def test_rejects_invalid_request_values(
 ) -> None:
     with pytest.raises(ValueError):
         service.request_increase(customer, value)
+
+
+def test_propagates_persistence_error_without_partial_save(
+    service: CreditService, customer: Customer, tmp_path: Path
+) -> None:
+    with (
+        patch.object(
+            service.request_repository,
+            "save",
+            side_effect=CreditRequestPersistenceError("locked"),
+        ),
+        pytest.raises(CreditRequestPersistenceError),
+    ):
+        service.request_increase(customer, "4000")
+
+    persisted = (tmp_path / "requests.csv").read_text().splitlines()
+    assert len(persisted) == 1
+
+
+@pytest.mark.parametrize("value", ["R$ 150.000", "R$ 150.000,00", "150000"])
+def test_accepts_high_credit_request_values(
+    service: CreditService, customer: Customer, value: str
+) -> None:
+    request = service.request_increase(customer, value)
+    assert request.novo_limite_solicitado == 150000
