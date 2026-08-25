@@ -1,3 +1,4 @@
+import csv
 from pathlib import Path
 
 import httpx
@@ -42,6 +43,41 @@ def test_authenticated_customer_can_request_credit(tmp_path: Path) -> None:
     state = graph.invoke(state, "quero aumento de limite")
     state = graph.invoke(state, "8000")
     assert "aprovado" in state["response"]
+
+
+def test_formatted_high_credit_request_reaches_rejection_and_persists(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph, state = build_test_graph(tmp_path), {}
+    for message in ("11144477735", "15/05/1990", "quero aumento de limite"):
+        state = graph.invoke(state, message)
+
+    state = graph.invoke(state, "R$ 150.000")
+
+    assert state["current_agent"] == "offer_interview"
+    assert "entrevista financeira" in state["response"]
+    with (tmp_path / "solicitacoes_aumento_limite.csv").open(
+        encoding="utf-8", newline=""
+    ) as file:
+        rows = list(csv.DictReader(file))
+    assert len(rows) == 1
+    assert rows[0]["novo_limite_solicitado"] == "150000"
+    assert rows[0]["status_pedido"] == "rejeitado"
+
+
+def test_invalid_credit_amount_stays_in_retry_flow_without_persistence(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph, state = build_test_graph(tmp_path), {}
+    for message in ("11144477735", "15/05/1990", "quero aumento de limite"):
+        state = graph.invoke(state, message)
+
+    state = graph.invoke(state, "banana")
+
+    assert state["current_agent"] == "awaiting_limit"
+    assert state["response"] == "Informe um valor monetário válido."
+    with (tmp_path / "solicitacoes_aumento_limite.csv").open(
+        encoding="utf-8", newline=""
+    ) as file:
+        assert list(csv.DictReader(file)) == []
 
 
 def test_three_authentication_failures_end_session(tmp_path: Path) -> None:

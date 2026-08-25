@@ -29,15 +29,13 @@ class CreditService:
         value = parse_money(requested_limit)
         if value <= 0:
             raise ValueError("O novo limite deve ser maior que zero.")
+        status = "aprovado" if value <= self.maximum_limit(customer.score) else "rejeitado"
         request = CreditRequest(
             cpf_cliente=customer.cpf,
             data_hora_solicitacao=datetime.now(UTC),
             limite_atual=customer.limite_credito,
             novo_limite_solicitado=value,
-            status_pedido="pendente",
+            status_pedido=status,
         )
         self.request_repository.save(request)
-        status = "aprovado" if value <= self.maximum_limit(customer.score) else "rejeitado"
-        analyzed_request = request.model_copy(update={"status_pedido": status})
-        self.request_repository.update_status(analyzed_request)
-        return analyzed_request
+        return request
