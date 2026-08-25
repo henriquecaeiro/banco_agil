@@ -1,5 +1,5 @@
 import re
-from datetime import date
+from datetime import date, datetime
 
 from src.models import Customer
 
@@ -15,7 +15,7 @@ def normalize_birth_date(value: str) -> str | None:
             return (
                 date.fromisoformat(value).isoformat()
                 if pattern == "%Y-%m-%d"
-                else date.strptime(value, pattern).isoformat()
+                else datetime.strptime(value, pattern).date().isoformat()
             )
         except ValueError:
             continue
