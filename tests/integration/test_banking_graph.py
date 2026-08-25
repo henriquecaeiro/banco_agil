@@ -4,6 +4,12 @@ import httpx
 
 from src.graph import BankingGraph
 from src.services import ExchangeService
+from src.services.intent_service import IntentService
+
+
+class NaturalLanguageIntent:
+    def invoke(self, prompt: str) -> dict[str, str]:
+        return {"intent": "increase"}
 
 
 def setup_data(directory: Path, score: int = 780) -> None:
@@ -59,3 +65,34 @@ def test_rejection_interview_and_exchange_flow(tmp_path: Path) -> None:
     assert "concluída" in state["response"]
     state = graph.invoke(state, "cotação do dólar")
     assert "5.50" in state["response"]
+
+
+def test_customer_can_decline_credit_interview(tmp_path: Path) -> None:
+    setup_data(tmp_path, score=300)
+    graph, state = BankingGraph(tmp_path), {}
+    for message in ("11144477735", "15/05/1990", "aumentar limite", "9000", "não"):
+        state = graph.invoke(state, message)
+
+    assert state["current_agent"] is None
+    assert "outro atendimento" in state["response"]
+
+
+def test_structured_intent_routes_natural_language(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    intent_service = IntentService(structured_llm=NaturalLanguageIntent())
+    graph, state = BankingGraph(tmp_path, intent_service=intent_service), {}
+    state = graph.invoke(state, "11144477735")
+    state = graph.invoke(state, "15/05/1990")
+    state = graph.invoke(state, "queria ver se consigo um limite um pouco maior")
+
+    assert state["intent"] == "increase"
+    assert state["current_agent"] == "awaiting_limit"
+
+
+def test_langgraph_exposes_domain_routing_nodes(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    nodes = BankingGraph(tmp_path).graph.get_graph().nodes
+
+    assert {"route", "authenticate", "identify_intent", "consult_limit", "quote_exchange"} <= set(
+        nodes
+    )

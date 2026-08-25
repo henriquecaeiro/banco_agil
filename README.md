@@ -47,7 +47,7 @@ tests                  testes unitários e de integração
 
 ## Manipulação dos Dados
 
-`clientes.csv` guarda somente clientes fictícios. `solicitacoes_aumento_limite.csv` recebe timestamp ISO 8601 e status `pendente`, `aprovado` ou `rejeitado`; esta implementação persiste o status final após a análise. `score_limite.csv` usa `score_min`, `score_max` e `limite_maximo` — interpretação documentada porque o desafio não define o schema. O termo padronizado é `rejeitado`.
+`clientes.csv` guarda somente clientes fictícios. `solicitacoes_aumento_limite.csv` recebe timestamp ISO 8601: o pedido é criado como `pendente` e atualizado para `aprovado` ou `rejeitado` após a análise. `score_limite.csv` usa `score_min`, `score_max` e `limite_maximo` — interpretação documentada porque o desafio não define o schema. O termo padronizado é `rejeitado`.
 
 ## Funcionalidades Implementadas
 
@@ -60,11 +60,11 @@ tests                  testes unitários e de integração
 
 ## Tecnologias Utilizadas
 
-Python 3.11+, Streamlit, LangGraph, Pydantic, pandas, httpx, python-dotenv e pytest. Gemini é configurável por ambiente para futuras interpretações naturais; a versão atual privilegia roteamento simples e determinístico, sem exigir chave para rodar.
+Python 3.11+, Streamlit, LangGraph, Gemini, Pydantic, pandas, httpx, python-dotenv e pytest. Quando configurado, Gemini interpreta a intenção em uma saída estruturada; sem chave ou em caso de falha, o roteamento usa um fallback determinístico.
 
 ## Escolhas Técnicas e Justificativas
 
-LangGraph concentra estado e handoffs. CSV mantém o desafio simples e auditável. Pydantic valida os dados estruturados. Repositories isolam persistência e services concentram regra de crédito e HTTP. Regras críticas não dependem do LLM.
+LangGraph concentra estado e handoffs. Gemini é usado somente para interpretar linguagem natural e retorna uma intenção estruturada. CSV mantém o desafio simples e auditável. Pydantic valida os dados estruturados. Repositories isolam persistência e services concentram regras de crédito e integrações. Autenticação, score, aprovação e persistência não dependem do LLM.
 
 ## Desafios Enfrentados e Como Foram Resolvidos
 
@@ -85,7 +85,7 @@ streamlit run app.py
 
 ## Configuração das Variáveis de Ambiente
 
-`GEMINI_API_KEY` e `LLM_MODEL` são opcionais na versão atual. `EXCHANGE_API_URL` permite trocar o endpoint de câmbio. Nunca versione o arquivo `.env`.
+`GEMINI_API_KEY` habilita a classificação de intenção pelo Gemini e `LLM_MODEL` seleciona o modelo. Sem chave, a aplicação continua funcionando com classificação determinística. `EXCHANGE_API_URL` permite trocar o endpoint de câmbio. Nunca versione o arquivo `.env`.
 
 ## Como Executar os Testes
 
@@ -103,3 +103,8 @@ Todos os dados são fictícios. Use, por exemplo:
 | 111.444.777-35 | 15/05/1990 | Ana Silva |
 | 222.333.444-05 | 20/10/1985 | Bruno Costa |
 | 123.456.789-09 | 30/01/1998 | Carla Souza |
+
+## Fluxo de Desenvolvimento
+
+Alterações saem de branches `feat/*`, `fix/*`, `docs/*`, `chore/*` ou `qa/*`, são integradas e
+validadas em `test` e somente então seguem para `master`. Veja [CONTRIBUTING.md](CONTRIBUTING.md).

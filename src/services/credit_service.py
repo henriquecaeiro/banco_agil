@@ -1,10 +1,11 @@
 import csv
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
 
 from src.models import CreditRequest, Customer
 from src.repositories import CreditRequestRepository
+from src.tools.money import parse_money
 
 
 class CreditService:
@@ -25,19 +26,18 @@ class CreditService:
         raise ValueError("No score range found for customer")
 
     def request_increase(self, customer: Customer, requested_limit: str) -> CreditRequest:
-        try:
-            value = Decimal(requested_limit.replace(",", ".").replace("R$", "").strip())
-        except (InvalidOperation, AttributeError) as error:
-            raise ValueError("Informe um valor monetário válido.") from error
+        value = parse_money(requested_limit)
         if value <= 0:
             raise ValueError("O novo limite deve ser maior que zero.")
-        status = "aprovado" if value <= self.maximum_limit(customer.score) else "rejeitado"
         request = CreditRequest(
             cpf_cliente=customer.cpf,
             data_hora_solicitacao=datetime.now(UTC),
             limite_atual=customer.limite_credito,
             novo_limite_solicitado=value,
-            status_pedido=status,
+            status_pedido="pendente",
         )
         self.request_repository.save(request)
-        return request
+        status = "aprovado" if value <= self.maximum_limit(customer.score) else "rejeitado"
+        analyzed_request = request.model_copy(update={"status_pedido": status})
+        self.request_repository.update_status(analyzed_request)
+        return analyzed_request

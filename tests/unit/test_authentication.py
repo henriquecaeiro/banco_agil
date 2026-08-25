@@ -4,7 +4,7 @@ import pytest
 
 from src.agents import TriageAgent
 from src.repositories import CustomerRepository
-from src.tools.authentication import normalize_cpf
+from src.tools.authentication import normalize_birth_date, normalize_cpf
 
 
 @pytest.fixture
@@ -19,6 +19,14 @@ def repository(tmp_path: Path) -> CustomerRepository:
 
 def test_normalizes_cpf() -> None:
     assert normalize_cpf("111.444.777-35") == "11144477735"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("15/05/1990", "1990-05-15"), ("1990-05-15", "1990-05-15"), ("31/02/2000", None)],
+)
+def test_normalizes_birth_date(value: str, expected: str | None) -> None:
+    assert normalize_birth_date(value) == expected
 
 
 def test_authenticates_correct_customer(repository: CustomerRepository) -> None:

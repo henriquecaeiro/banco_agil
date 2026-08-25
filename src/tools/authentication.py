@@ -10,16 +10,15 @@ def normalize_cpf(cpf: str) -> str:
 
 def normalize_birth_date(value: str) -> str | None:
     value = value.strip()
-    for pattern in ("%Y-%m-%d", "%d/%m/%Y"):
-        try:
-            return (
-                date.fromisoformat(value).isoformat()
-                if pattern == "%Y-%m-%d"
-                else date.strptime(value, pattern).isoformat()
-            )
-        except ValueError:
-            continue
-    return None
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError:
+        pass
+    try:
+        day, month, year = (int(part) for part in value.split("/"))
+        return date(year, month, day).isoformat()
+    except ValueError:
+        return None
 
 
 def authenticate_customer(customer: Customer | None, birth_date: str) -> bool:

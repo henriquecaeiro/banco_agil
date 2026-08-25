@@ -1,6 +1,10 @@
+import logging
+
 import streamlit as st
 
 from src.graph import BankingGraph
+
+logger = logging.getLogger(__name__)
 
 st.set_page_config(page_title="Banco Ágil", page_icon="🏦")
 
@@ -38,7 +42,8 @@ if prompt := st.chat_input("Digite sua mensagem"):
     try:
         st.session_state.state = st.session_state.graph.invoke(st.session_state.state, prompt)
         response = st.session_state.state["response"]
-    except (FileNotFoundError, OSError, ValueError):
+    except (FileNotFoundError, KeyError, LookupError, OSError, TypeError, ValueError):
+        logger.exception("Failed to process banking chat message")
         response = "Não consegui processar essa informação agora. Podemos tentar novamente?"
     st.session_state.history.append({"role": "assistant", "content": response})
     st.rerun()
