@@ -26,7 +26,7 @@ def test_rejects_invalid_payload_and_currency() -> None:
     service = ExchangeService(
         "https://example.test", client(lambda request: httpx.Response(200, json={}))
     )
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         service.quote_in_brl("USD")
     with pytest.raises(ValueError):
         service.quote_in_brl("BTC")

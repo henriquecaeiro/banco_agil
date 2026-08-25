@@ -1,16 +1,18 @@
+from typing import ClassVar
+
 from src.models import CreditInterview
 from src.services.customer_service import CustomerService
 
 
 class CreditInterviewAgent:
-    fields = (
+    fields: ClassVar = (
         "renda_mensal",
         "tipo_emprego",
         "despesas_fixas_mensais",
         "numero_dependentes",
         "tem_dividas",
     )
-    questions = {
+    questions: ClassVar = {
         "renda_mensal": "Qual é sua renda mensal?",
         "tipo_emprego": "Seu tipo de emprego é formal, autônomo ou desempregado?",
         "despesas_fixas_mensais": "Quais são suas despesas fixas mensais?",

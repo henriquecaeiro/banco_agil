@@ -1,4 +1,5 @@
 import logging
+from typing import ClassVar
 
 import httpx
 
@@ -6,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExchangeService:
-    supported_currencies = {"USD", "EUR", "GBP", "ARS", "JPY"}
+    supported_currencies: ClassVar = {"USD", "EUR", "GBP", "ARS", "JPY"}
 
     def __init__(self, base_url: str, client: httpx.Client | None = None):
         self.base_url = base_url.rstrip("/")
@@ -22,7 +23,7 @@ class ExchangeService:
             payload = response.json()
             rate = payload.get("rates", {}).get("BRL")
             if not isinstance(rate, (int, float)):
-                raise ValueError("Resposta de câmbio inesperada.")
+                raise TypeError("Resposta de câmbio inesperada.")
             return float(rate)
         except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as error:
             logger.warning("Exchange API failed: %s", error)
