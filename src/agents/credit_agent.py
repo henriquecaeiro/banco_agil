@@ -1,8 +1,8 @@
 from src.agents.decisions import AgentDecision, intent_to_action
 from src.agents.profiles import CREDIT_PROFILE
 from src.models import Customer
-from src.services import CreditService
-from src.services.intent_service import AgentDecisionService, deterministic_intent
+from src.services.credit_service import CreditService
+from src.tools.intents import deterministic_intent
 
 
 class CreditAgent:
@@ -10,11 +10,7 @@ class CreditAgent:
 
     profile = CREDIT_PROFILE
 
-    def __init__(
-        self,
-        credit_service: CreditService,
-        decision_service: AgentDecisionService | None = None,
-    ):
+    def __init__(self, credit_service: CreditService, decision_service=None):
         self.credit_service = credit_service
         self.decision_service = decision_service
 

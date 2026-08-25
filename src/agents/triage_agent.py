@@ -1,9 +1,9 @@
 from src.agents.decisions import AgentDecision
 from src.agents.profiles import TRIAGE_PROFILE
 from src.repositories import CustomerRepository
-from src.services.intent_service import AgentDecisionService, deterministic_intent
 from src.tools.authentication import authenticate_customer, normalize_cpf
 from src.tools.conversation import end_conversation
+from src.tools.intents import deterministic_intent
 
 
 class TriageAgent:
@@ -11,11 +11,7 @@ class TriageAgent:
 
     profile = TRIAGE_PROFILE
 
-    def __init__(
-        self,
-        customer_repository: CustomerRepository,
-        decision_service: AgentDecisionService | None = None,
-    ):
+    def __init__(self, customer_repository: CustomerRepository, decision_service=None):
         self.customer_repository = customer_repository
         self.decision_service = decision_service
 

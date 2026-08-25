@@ -1,7 +1,6 @@
 from src.agents.decisions import AgentDecision, intent_to_action
 from src.agents.profiles import EXCHANGE_PROFILE
 from src.services.exchange_service import ExchangeService
-from src.services.intent_service import AgentDecisionService, deterministic_intent
 from src.tools.currency import (
     CURRENCY_DISPLAY_NAMES,
     KNOWN_CURRENCY_CODES,
@@ -10,6 +9,7 @@ from src.tools.currency import (
     unidentified_currency_message,
     unsupported_currency_message,
 )
+from src.tools.intents import deterministic_intent
 
 
 class ExchangeAgent:
@@ -17,11 +17,7 @@ class ExchangeAgent:
 
     profile = EXCHANGE_PROFILE
 
-    def __init__(
-        self,
-        exchange_service: ExchangeService,
-        decision_service: AgentDecisionService | None = None,
-    ):
+    def __init__(self, exchange_service: ExchangeService, decision_service=None):
         self.exchange_service = exchange_service
         self.decision_service = decision_service
 
