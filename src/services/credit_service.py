@@ -1,5 +1,5 @@
 import csv
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -34,7 +34,7 @@ class CreditService:
         status = "aprovado" if value <= self.maximum_limit(customer.score) else "rejeitado"
         request = CreditRequest(
             cpf_cliente=customer.cpf,
-            data_hora_solicitacao=datetime.now(timezone.utc),
+            data_hora_solicitacao=datetime.now(UTC),
             limite_atual=customer.limite_credito,
             novo_limite_solicitado=value,
             status_pedido=status,
