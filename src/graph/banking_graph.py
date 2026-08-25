@@ -6,29 +6,18 @@ from src.agents import CreditAgent, CreditInterviewAgent, ExchangeAgent, TriageA
 from src.config.settings import settings
 from src.graph.state import BankingState
 from src.repositories import CreditRequestRepository, CustomerRepository
-from src.services import CreditService, CustomerService, ExchangeService
+from src.services import CreditService, CustomerService, ExchangeService, IntentService
+from src.services.intent_service import deterministic_intent
 from src.tools.authentication import normalize_cpf
 from src.tools.conversation import end_conversation
 
 
-def _intent(message: str) -> str:
-    text = message.lower()
-    if any(word in text for word in ("encerrar", "finalizar", "tchau", "obrigado", "era isso")):
-        return "end"
-    if any(word in text for word in ("câmbio", "cambio", "dólar", "dolar", "euro", "usd", "eur")):
-        return "exchange"
-    if "aumento" in text or "aumentar" in text:
-        return "increase"
-    if "limite" in text:
-        return "limit"
-    if "entrevista" in text:
-        return "interview"
-    return "unsupported"
-
-
 class BankingGraph:
     def __init__(
-        self, data_dir: Path | None = None, exchange_service: ExchangeService | None = None
+        self,
+        data_dir: Path | None = None,
+        exchange_service: ExchangeService | None = None,
+        intent_service: IntentService | None = None,
     ):
         directory = data_dir or settings.data_dir
         customer_repository = CustomerRepository(directory / "clientes.csv")
@@ -42,6 +31,9 @@ class BankingGraph:
         self.interview = CreditInterviewAgent(CustomerService(customer_repository))
         self.exchange = ExchangeAgent(
             exchange_service or ExchangeService(settings.exchange_api_url)
+        )
+        self.intent_service = intent_service or IntentService(
+            api_key=settings.gemini_api_key, model=settings.llm_model
         )
         self.graph = self._compile()
 
@@ -70,8 +62,7 @@ class BankingGraph:
             return state
         if not state.get("authenticated"):
             return self._authenticate(state, message)
-        intent = _intent(message)
-        if intent == "end":
+        if deterministic_intent(message) == "end":
             end_conversation(state)
             state["response"] = "Atendimento encerrado. Obrigado por falar com o Banco Ágil!"
         elif state.get("current_agent") == "interview":
@@ -101,6 +92,16 @@ class BankingGraph:
                 )
             else:
                 state["response"] = "Deseja fazer a entrevista financeira? Responda sim ou não."
+        else:
+            self._route_intent(state, message)
+        return state
+
+    def _route_intent(self, state: BankingState, message: str) -> None:
+        intent = self.intent_service.classify(message)
+        state["intent"] = intent
+        if intent == "end":
+            end_conversation(state)
+            state["response"] = "Atendimento encerrado. Obrigado por falar com o Banco Ágil!"
         elif intent == "limit":
             state["current_agent"] = "credit"
             state["response"] = self.credit.consult_limit(state["customer"])
@@ -117,7 +118,6 @@ class BankingGraph:
             state["response"] = (
                 "Posso ajudar com limite de crédito, aumento de limite, entrevista financeira ou câmbio."
             )
-        return state
 
     def _authenticate(self, state: BankingState, message: str) -> BankingState:
         if not state.get("pending_auth_cpf"):
