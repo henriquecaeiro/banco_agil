@@ -1,5 +1,5 @@
 streamlit>=1.38,<2
-langgraph>=0.2,<1
+langgraph>=1.2,<2
 langchain-core>=0.3,<1
 langchain-google-genai>=2,<4
 pandas>=2.2,<3
