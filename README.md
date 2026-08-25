@@ -47,7 +47,7 @@ tests                  testes unitários e de integração
 
 ## Manipulação dos Dados
 
-`clientes.csv` guarda somente clientes fictícios. `solicitacoes_aumento_limite.csv` recebe timestamp ISO 8601 e status `pendente`, `aprovado` ou `rejeitado`; esta implementação persiste o status final após a análise. `score_limite.csv` usa `score_min`, `score_max` e `limite_maximo` — interpretação documentada porque o desafio não define o schema. O termo padronizado é `rejeitado`.
+`clientes.csv` guarda somente clientes fictícios. `solicitacoes_aumento_limite.csv` recebe timestamp ISO 8601: o pedido é criado como `pendente` e atualizado para `aprovado` ou `rejeitado` após a análise. `score_limite.csv` usa `score_min`, `score_max` e `limite_maximo` — interpretação documentada porque o desafio não define o schema. O termo padronizado é `rejeitado`.
 
 ## Funcionalidades Implementadas
 
