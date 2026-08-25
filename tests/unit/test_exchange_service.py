@@ -39,3 +39,9 @@ def test_rejects_invalid_payload_and_currency() -> None:
         service.quote_in_brl("USD")
     with pytest.raises(ValueError):
         service.quote_in_brl("BTC")
+
+
+def test_formats_supported_currencies() -> None:
+    formatted = ExchangeService.format_supported_currencies()
+    assert "dólar americano (USD)" in formatted
+    assert "iene japonês (JPY)" in formatted
