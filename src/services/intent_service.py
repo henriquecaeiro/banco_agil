@@ -17,7 +17,24 @@ def deterministic_intent(message: str) -> Intent:
     text = message.lower()
     if any(word in text for word in ("encerrar", "finalizar", "tchau", "obrigado", "era isso")):
         return "end"
-    if any(word in text for word in ("câmbio", "cambio", "dólar", "dolar", "euro", "usd", "eur")):
+    if any(
+        word in text
+        for word in (
+            "câmbio",
+            "cambio",
+            "dólar",
+            "dolar",
+            "euro",
+            "libra",
+            "peso",
+            "iene",
+            "usd",
+            "eur",
+            "gbp",
+            "ars",
+            "jpy",
+        )
+    ):
         return "exchange"
     if any(
         phrase in text
@@ -67,8 +84,11 @@ class IntentService:
                 "unsupported. Use increase, e não limit, quando o cliente pedir para aumentar, "
                 f"subir ou obter mais limite. Mensagem: {message!r}"
             )
+            payload = result.get("parameters", result) if isinstance(result, dict) else result
             parsed = (
-                result if isinstance(result, IntentResult) else IntentResult.model_validate(result)
+                payload
+                if isinstance(payload, IntentResult)
+                else IntentResult.model_validate(payload)
             )
             return parsed.intent
         # Provider/transport parsers expose multiple exception types; all must degrade locally.
