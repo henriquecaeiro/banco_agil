@@ -113,10 +113,10 @@ class BankingGraph:
         message = state["message"].strip()
         if state.get("conversation_ended"):
             return "closed"
-        if not state.get("authenticated"):
-            return "authenticate"
         if deterministic_intent(message) == "end":
             return "end"
+        if not state.get("authenticated"):
+            return "authenticate"
         current_agent = state.get("current_agent")
         if current_agent == "interview":
             return "interview"
