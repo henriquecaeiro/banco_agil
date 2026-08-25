@@ -24,9 +24,19 @@ def setup_data(directory: Path, score: int = 780) -> None:
     )
 
 
+def build_test_graph(
+    directory: Path, exchange_service: ExchangeService | None = None
+) -> BankingGraph:
+    return BankingGraph(
+        directory,
+        exchange_service=exchange_service,
+        intent_service=IntentService(),
+    )
+
+
 def test_authenticated_customer_can_request_credit(tmp_path: Path) -> None:
     setup_data(tmp_path)
-    graph, state = BankingGraph(tmp_path), {}
+    graph, state = build_test_graph(tmp_path), {}
     state = graph.invoke(state, "111.444.777-35")
     state = graph.invoke(state, "15/05/1990")
     state = graph.invoke(state, "quero aumento de limite")
@@ -36,7 +46,7 @@ def test_authenticated_customer_can_request_credit(tmp_path: Path) -> None:
 
 def test_three_authentication_failures_end_session(tmp_path: Path) -> None:
     setup_data(tmp_path)
-    graph, state = BankingGraph(tmp_path), {}
+    graph, state = build_test_graph(tmp_path), {}
     for _ in range(3):
         state = graph.invoke(state, "11144477735")
         state = graph.invoke(state, "01/01/2000")
@@ -53,7 +63,7 @@ def test_rejection_interview_and_exchange_flow(tmp_path: Path) -> None:
             )
         ),
     )
-    graph, state = BankingGraph(tmp_path, exchange), {}
+    graph, state = build_test_graph(tmp_path, exchange), {}
     state = graph.invoke(state, "11144477735")
     state = graph.invoke(state, "15/05/1990")
     state = graph.invoke(state, "quero aumento de limite")
@@ -69,7 +79,7 @@ def test_rejection_interview_and_exchange_flow(tmp_path: Path) -> None:
 
 def test_customer_can_decline_credit_interview(tmp_path: Path) -> None:
     setup_data(tmp_path, score=300)
-    graph, state = BankingGraph(tmp_path), {}
+    graph, state = build_test_graph(tmp_path), {}
     for message in ("11144477735", "15/05/1990", "aumentar limite", "9000", "não"):
         state = graph.invoke(state, message)
 
@@ -91,7 +101,7 @@ def test_structured_intent_routes_natural_language(tmp_path: Path) -> None:
 
 def test_langgraph_exposes_domain_routing_nodes(tmp_path: Path) -> None:
     setup_data(tmp_path)
-    nodes = BankingGraph(tmp_path).graph.get_graph().nodes
+    nodes = build_test_graph(tmp_path).graph.get_graph().nodes
 
     assert {"route", "authenticate", "identify_intent", "consult_limit", "quote_exchange"} <= set(
         nodes
