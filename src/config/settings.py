@@ -11,7 +11,7 @@ load_dotenv()
 class Settings:
     data_dir: Path = Path(getenv("DATA_DIR", "data"))
     gemini_api_key: str | None = getenv("GEMINI_API_KEY")
-    llm_model: str = getenv("LLM_MODEL", "gemini-2.0-flash")
+    llm_model: str = getenv("LLM_MODEL", "gemini-3.6-flash")
     exchange_api_url: str = getenv("EXCHANGE_API_URL", "https://open.er-api.com/v6/latest")
 
 
