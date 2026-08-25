@@ -52,3 +52,15 @@ def test_falls_back_when_llm_fails() -> None:
     service = IntentService(structured_llm=FakeStructuredLlm(error=TimeoutError("offline")))
 
     assert service.classify("quero consultar meu limite") == "limit"
+
+
+def test_timeout_maps_natural_increase_to_request() -> None:
+    service = IntentService(structured_llm=FakeStructuredLlm(error=TimeoutError("504")))
+
+    assert service.classify("queria um limite um pouco maior") == "increase"
+
+
+def test_timeout_maps_current_limit_question_to_consult() -> None:
+    service = IntentService(structured_llm=FakeStructuredLlm(error=TimeoutError("504")))
+
+    assert service.classify("quanto é meu limite?") == "limit"

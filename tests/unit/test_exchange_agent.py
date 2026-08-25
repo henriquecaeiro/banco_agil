@@ -75,6 +75,21 @@ def test_unidentified_currency_prompts_user() -> None:
     assert "dólar americano (USD)" in response
 
 
+def test_suggested_currency_is_used_when_message_has_no_alias() -> None:
+    called = {"count": 0}
+
+    def fail_if_called(request: httpx.Request) -> httpx.Response:
+        called["count"] += 1
+        return httpx.Response(500)
+
+    agent = build_agent(fail_if_called)
+    response = agent.respond("Quero a cotação daquela viagem", suggested_currency="AOA")
+
+    assert called["count"] == 0
+    assert "AOA" in response
+    assert "kwanza" in response.lower()
+
+
 def test_kwanza_match_is_unsupported() -> None:
     match = identify_currency("Quanto está o kwanza hoje?")
 

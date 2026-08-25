@@ -16,6 +16,7 @@ from src.tools.intents import deterministic_intent
 from src.tools.responses import (
     AUTH_BIRTH_DATE_MESSAGE,
     AUTH_REQUIRED_MESSAGE,
+    CLARIFY_LIMIT_MESSAGE,
     unsupported_intent_message,
 )
 
@@ -72,6 +73,7 @@ class BankingGraph:
         graph.add_node("request_increase", self._request_increase)
         graph.add_node("start_interview", self._start_interview)
         graph.add_node("quote_exchange", self._quote_exchange)
+        graph.add_node("clarify_limit", self._clarify_limit)
         graph.add_node("unsupported", self._unsupported)
 
         graph.add_edge(START, "route")
@@ -96,6 +98,7 @@ class BankingGraph:
                 "increase": "request_increase",
                 "interview": "start_interview",
                 "exchange": "quote_exchange",
+                "clarify_limit": "clarify_limit",
                 "end": "end_conversation",
                 "unsupported": "unsupported",
             },
@@ -111,6 +114,7 @@ class BankingGraph:
             "request_increase",
             "start_interview",
             "quote_exchange",
+            "clarify_limit",
             "unsupported",
         ):
             graph.add_edge(node, END)
@@ -293,25 +297,9 @@ class BankingGraph:
         )
         return state
 
-    def _consult_limit(self, state: BankingState) -> BankingState:
-        state["current_agent"] = "credit"
-        state["response"] = self.credit.consult_limit(state["customer"])
-        return state
-
     @staticmethod
-    def _request_increase(state: BankingState) -> BankingState:
-        state["current_agent"] = "awaiting_limit"
-        state["response"] = "Qual novo limite você deseja solicitar?"
-        return state
-
-    def _start_interview(self, state: BankingState) -> BankingState:
-        state["current_agent"] = "interview"
-        state["response"] = self.interview.start(state)
-        return state
-
-    def _quote_exchange(self, state: BankingState) -> BankingState:
-        state["current_agent"] = "exchange"
-        state["response"] = self.exchange.respond(state["message"])
+    def _clarify_limit(state: BankingState) -> BankingState:
+        state["response"] = CLARIFY_LIMIT_MESSAGE
         return state
 
     @staticmethod

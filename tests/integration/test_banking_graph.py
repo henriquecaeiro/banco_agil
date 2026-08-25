@@ -234,3 +234,47 @@ def test_langgraph_exposes_domain_routing_nodes(tmp_path: Path) -> None:
     assert {"route", "authenticate", "identify_intent", "consult_limit", "quote_exchange"} <= set(
         nodes
     )
+
+
+class SuggestedAoaDecision:
+    def invoke(self, prompt: str) -> dict[str, str]:
+        return {"action": "quote_exchange", "currency": "AOA"}
+
+
+def test_suggested_currency_from_llm_reaches_exchange_agent(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph = BankingGraph(
+        tmp_path,
+        intent_service=IntentService(structured_llm=SuggestedAoaDecision()),
+    )
+    state = graph.invoke({}, "11144477735")
+    state = graph.invoke(state, "15/05/1990")
+    state = graph.invoke(state, "quero a cotação daquela viagem")
+
+    assert state["intent"] == "exchange"
+    assert state["suggested_currency"] == "AOA"
+    assert "AOA" in state["response"]
+    assert "não consigo consultar" in state["response"].lower()
+
+
+def test_fallback_increase_asks_for_new_limit(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph, state = build_test_graph(tmp_path), {}
+    state = graph.invoke(state, "11144477735")
+    state = graph.invoke(state, "15/05/1990")
+    state = graph.invoke(state, "queria um limite um pouco maior")
+
+    assert state["intent"] == "increase"
+    assert state["current_agent"] == "awaiting_limit"
+
+
+def test_ambiguous_limit_phrase_asks_consult_or_increase(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph, state = build_test_graph(tmp_path), {}
+    state = graph.invoke(state, "11144477735")
+    state = graph.invoke(state, "15/05/1990")
+    state = graph.invoke(state, "meu limite")
+
+    assert state["intent"] == "clarify_limit"
+    assert "consultar seu limite atual" in state["response"]
+    assert "aumento" in state["response"]

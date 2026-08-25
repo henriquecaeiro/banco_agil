@@ -8,6 +8,7 @@ AgentAction = Literal[
     "start_interview",
     "continue_interview",
     "quote_exchange",
+    "clarify_limit",
     "unsupported",
     "end",
 ]
@@ -23,6 +24,7 @@ INTENT_TO_ACTION: dict[str, AgentAction] = {
     "increase": "request_increase",
     "interview": "start_interview",
     "exchange": "quote_exchange",
+    "clarify_limit": "clarify_limit",
     "end": "end",
     "unsupported": "unsupported",
 }
@@ -33,6 +35,7 @@ ACTION_TO_INTENT: dict[str, str] = {
     "start_interview": "interview",
     "continue_interview": "unsupported",
     "quote_exchange": "exchange",
+    "clarify_limit": "clarify_limit",
     "unsupported": "unsupported",
     "end": "end",
 }

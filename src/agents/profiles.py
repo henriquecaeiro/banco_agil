@@ -32,7 +32,10 @@ TRIAGE_PROFILE = AgentProfile(
     scope="Autenticação já ocorreu. Identifique a necessidade e encaminhe.",
     instructions=(
         "Escolha a capacidade bancária pedida: consultar limite, aumento, "
-        "entrevista financeira, câmbio ou encerrar. Fora do escopo, use unsupported."
+        "entrevista financeira, câmbio ou encerrar. "
+        "Limite maior, um pouco mais de limite ou mais crédito são aumento. "
+        "Se não der para distinguir consulta e aumento, use clarify_limit. "
+        "Fora do escopo, use unsupported."
     ),
     allowed_actions=frozenset(
         {
@@ -40,6 +43,7 @@ TRIAGE_PROFILE = AgentProfile(
             "request_increase",
             "start_interview",
             "quote_exchange",
+            "clarify_limit",
             "unsupported",
             "end",
         }
@@ -54,8 +58,9 @@ CREDIT_PROFILE = AgentProfile(
     scope="Consulta de limite, pedido de aumento e oferta de entrevista.",
     instructions=(
         "Se o cliente quer o limite atual, use consult_limit. "
-        "Se quer aumentar, use request_increase. "
+        "Se quer aumentar, inclusive um limite um pouco maior, use request_increase. "
         "Se pede reanálise financeira, use start_interview. "
+        "Se não der para distinguir consulta e aumento, use clarify_limit. "
         "Câmbio deve ser encaminhado com quote_exchange."
     ),
     allowed_actions=frozenset(
@@ -64,6 +69,7 @@ CREDIT_PROFILE = AgentProfile(
             "request_increase",
             "start_interview",
             "quote_exchange",
+            "clarify_limit",
             "unsupported",
             "end",
         }
