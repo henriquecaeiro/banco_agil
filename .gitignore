@@ -150,6 +150,7 @@ activemq-data/
 # Environments
 .env
 .venv/
+.venv-release/
 .envrc
 .venv
 env/

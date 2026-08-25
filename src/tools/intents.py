@@ -1,6 +1,14 @@
 from typing import Literal
 
-Intent = Literal["limit", "increase", "interview", "exchange", "end", "unsupported"]
+Intent = Literal[
+    "limit",
+    "increase",
+    "interview",
+    "exchange",
+    "end",
+    "unsupported",
+    "clarify_limit",
+]
 
 
 def deterministic_intent(message: str) -> Intent:
@@ -46,11 +54,31 @@ def deterministic_intent(message: str) -> Intent:
         return "exchange"
     if any(
         phrase in text
-        for phrase in ("aumento", "aumentar", "subir", "mais limite", "limite maior", "elevar")
+        for phrase in (
+            "aumento",
+            "aumentar",
+            "subir",
+            "elevar",
+            "mais limite",
+            "mais crédito",
+            "mais credito",
+            "mais de limite",
+            "um pouco mais",
+            "limite maior",
+            "limite fosse maior",
+            "um pouco maior",
+        )
     ):
         return "increase"
-    if "limite" in text:
+    if any(phrase in text for phrase in ("o banco libera", "banco libera pra")):
         return "limit"
+    mentions_credit = any(word in text for word in ("limite", "crédito", "credito"))
+    if mentions_credit:
+        if "maior" in text:
+            return "increase"
+        if any(word in text for word in ("quanto", "qual", "consultar", "consulta")):
+            return "limit"
+        return "clarify_limit"
     if "entrevista" in text:
         return "interview"
     return "unsupported"

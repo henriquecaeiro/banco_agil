@@ -37,14 +37,14 @@ O LangGraph orquestra estado e handoffs internos. A interface apresenta somente 
 
 Gemini interpreta a linguagem e escolhe uma capacidade **dentro do escopo do agente**. Python executa autenticação, score, aprovação, persistência e a API de câmbio.
 
-Sem `GEMINI_API_KEY`, ou se o provedor falhar, o mesmo conjunto de ações é escolhido por um fallback determinístico.
+Sem `GEMINI_API_KEY`, ou se o provedor falhar, o mesmo conjunto de ações é escolhido por um fallback determinístico. Frases como “um limite um pouco maior” são tratadas como pedido de aumento. Se só der para perceber que o assunto é limite, o fallback pergunta se o cliente quer consultar ou aumentar.
 
 ## Agentes
 
 | Agente | Responsabilidade | Ações |
 | --- | --- | --- |
-| Triagem | Autentica o cliente e identifica a necessidade | `consult_limit`, `request_increase`, `start_interview`, `quote_exchange`, `unsupported`, `end` |
-| Crédito | Consulta limite, registra pedido e oferece entrevista | `consult_limit`, `request_increase`, `start_interview`, `quote_exchange`, `unsupported`, `end` |
+| Triagem | Autentica o cliente e identifica a necessidade | `consult_limit`, `request_increase`, `start_interview`, `quote_exchange`, `clarify_limit`, `unsupported`, `end` |
+| Crédito | Consulta limite, registra pedido e oferece entrevista | `consult_limit`, `request_increase`, `start_interview`, `quote_exchange`, `clarify_limit`, `unsupported`, `end` |
 | Entrevista | Coleta dados financeiros e devolve o fluxo ao crédito | `continue_interview`, `consult_limit`, `request_increase`, `quote_exchange`, `unsupported`, `end` |
 | Câmbio | Identifica a moeda e aciona a cotação permitida | `quote_exchange`, `consult_limit`, `request_increase`, `start_interview`, `unsupported`, `end` |
 
