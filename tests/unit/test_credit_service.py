@@ -62,6 +62,10 @@ def test_rejects_above_score_limit(service: CreditService, customer: Customer) -
     assert service.request_increase(customer, "6000").status_pedido == "rejeitado"
 
 
+def test_returns_current_limit(service: CreditService, customer: Customer) -> None:
+    assert service.current_limit(customer) == 1000
+
+
 def test_accepts_brazilian_currency_format(service: CreditService, customer: Customer) -> None:
     request = service.request_increase(customer, "R$ 4.000,00")
     assert request.novo_limite_solicitado == 4000
