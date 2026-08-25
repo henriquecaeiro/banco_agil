@@ -22,6 +22,15 @@ def test_handles_http_error() -> None:
         service.quote_in_brl("USD")
 
 
+def test_handles_timeout() -> None:
+    def timeout(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    service = ExchangeService("https://example.test", client(timeout))
+    with pytest.raises(ConnectionError):
+        service.quote_in_brl("USD")
+
+
 def test_rejects_invalid_payload_and_currency() -> None:
     service = ExchangeService(
         "https://example.test", client(lambda request: httpx.Response(200, json={}))
