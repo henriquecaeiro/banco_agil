@@ -3,6 +3,7 @@ import pytest
 
 from src.agents.exchange_agent import ExchangeAgent
 from src.services.exchange_service import ExchangeService
+from src.tools.currency import identify_currency, unsupported_currency_message
 
 
 def client(handler):
@@ -33,10 +34,13 @@ def test_quotes_supported_eur() -> None:
 @pytest.mark.parametrize(
     ("message", "currency"),
     [
+        ("Quanto está o kwanza hoje?", "AOA"),
         ("Quanto está o dólar canadense?", "CAD"),
         ("Qual a cotação do CAD?", "CAD"),
         ("Quanto está o franco suíço?", "CHF"),
         ("Qual o valor do CHF?", "CHF"),
+        ("Quanto está o yuan?", "CNY"),
+        ("Quanto está AOA?", "AOA"),
     ],
 )
 def test_unsupported_currency_lists_available_options(message: str, currency: str) -> None:
@@ -51,11 +55,8 @@ def test_unsupported_currency_lists_available_options(message: str, currency: st
 
     assert called["count"] == 0
     assert currency in response
+    assert "não consigo consultar a cotação" in response.lower()
     assert "dólar americano (USD)" in response
-    assert "euro (EUR)" in response
-    assert "libra esterlina (GBP)" in response
-    assert "peso argentino (ARS)" in response
-    assert "iene japonês (JPY)" in response
 
 
 def test_supported_currency_api_failure_uses_api_error_message() -> None:
@@ -66,8 +67,18 @@ def test_supported_currency_api_failure_uses_api_error_message() -> None:
     assert "dólar americano (USD)" not in response
 
 
-def test_missing_currency_prompts_user() -> None:
+def test_unidentified_currency_prompts_user() -> None:
     agent = build_agent(lambda request: httpx.Response(200, json={"rates": {"BRL": 1.0}}))
-    response = agent.respond("Quanto está a moeda?")
+    response = agent.respond("Quero ver uma cotação.")
 
-    assert "Informe a moeda" in response
+    assert "Não consegui identificar qual moeda" in response
+    assert "dólar americano (USD)" in response
+
+
+def test_kwanza_match_is_unsupported() -> None:
+    match = identify_currency("Quanto está o kwanza hoje?")
+
+    assert match is not None
+    assert match.code == "AOA"
+    assert match.supported is False
+    assert "kwanza" in unsupported_currency_message(match).lower()
