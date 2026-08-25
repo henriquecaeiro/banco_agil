@@ -24,15 +24,19 @@ def deterministic_intent(message: str) -> Intent:
             "cambio",
             "dólar",
             "dolar",
+            "canadense",
             "euro",
             "libra",
             "peso",
             "iene",
+            "franco",
             "usd",
             "eur",
             "gbp",
             "ars",
             "jpy",
+            "cad",
+            "chf",
         )
     ):
         return "exchange"

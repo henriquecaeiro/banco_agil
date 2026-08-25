@@ -57,6 +57,8 @@ tests                  testes unitários e de integração
 - Atualização controlada do score do cliente no CSV.
 - Cotação USD, EUR, GBP, ARS e JPY em BRL com tratamento de falhas HTTP.
 - Encerramento de conversa e UI de chat com reinício de sessão.
+- Feedback visual durante operações de atendimento.
+- Orientação ao usuário para moedas disponíveis quando a cotação solicitada não é suportada.
 
 ## Tecnologias Utilizadas
 
