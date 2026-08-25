@@ -1,11 +1,17 @@
 from typing import ClassVar
 
+from src.agents.decisions import AgentDecision, intent_to_action
+from src.agents.profiles import INTERVIEW_PROFILE
 from src.models import CreditInterview
 from src.services.customer_service import CustomerService
+from src.services.intent_service import AgentDecisionService, deterministic_intent
 from src.tools.money import parse_money
 
 
 class CreditInterviewAgent:
+    """Especialista em entrevista: coleta respostas e aplica score determinístico."""
+
+    profile = INTERVIEW_PROFILE
     fields: ClassVar = (
         "renda_mensal",
         "tipo_emprego",
@@ -21,8 +27,18 @@ class CreditInterviewAgent:
         "tem_dividas": "Você possui dívidas ativas? Responda sim ou não.",
     }
 
-    def __init__(self, customer_service: CustomerService):
+    def __init__(
+        self,
+        customer_service: CustomerService,
+        decision_service: AgentDecisionService | None = None,
+    ):
         self.customer_service = customer_service
+        self.decision_service = decision_service
+
+    def decide(self, message: str) -> AgentDecision:
+        if self.decision_service is None:
+            return AgentDecision(action=intent_to_action(deterministic_intent(message)))
+        return self.decision_service.decide(self.profile, message)
 
     def start(self, state: dict) -> str:
         state["credit_interview"] = {}

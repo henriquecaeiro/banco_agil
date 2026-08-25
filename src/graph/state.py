@@ -11,6 +11,7 @@ class BankingState(TypedDict, total=False):
     intent: str | None
     conversation_ended: bool
     pending_auth_cpf: str
-    pending_credit_request: bool
+    pending_credit_request: dict[str, Any] | None
+    suggested_currency: str
     credit_interview: dict[str, Any]
     response: str
