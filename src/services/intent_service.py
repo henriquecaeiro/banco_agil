@@ -56,8 +56,8 @@ class IntentService:
 
     def classify(self, message: str) -> Intent:
         fallback = deterministic_intent(message)
-        # Clear banking commands should respond promptly; Gemini handles ambiguous language.
-        if fallback != "unsupported" or self.structured_llm is None:
+        # Clear commands respond promptly; ambiguous requests for a larger limit still use Gemini.
+        if self.structured_llm is None or self._is_clear_intent(message, fallback):
             return fallback
         try:
             result = self.structured_llm.invoke(
@@ -77,3 +77,12 @@ class IntentService:
                 "LLM intent classification failed; using deterministic fallback: %s", error
             )
             return fallback
+
+    @staticmethod
+    def _is_clear_intent(message: str, intent: Intent) -> bool:
+        if intent in {"end", "exchange", "increase", "interview"}:
+            return True
+        if intent != "limit":
+            return False
+        text = message.lower()
+        return any(phrase in text for phrase in ("qual", "quanto", "consultar", "disponível"))
