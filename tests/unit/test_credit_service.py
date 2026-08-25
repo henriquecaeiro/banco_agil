@@ -30,7 +30,32 @@ def test_approves_and_persists_request(
 ) -> None:
     request = service.request_increase(customer, "4000")
     assert request.status_pedido == "aprovado"
-    assert "aprovado" in (tmp_path / "requests.csv").read_text()
+    persisted = (tmp_path / "requests.csv").read_text()
+    assert "aprovado" in persisted
+    assert "pendente" not in persisted
+
+
+def test_persists_pending_before_analysis(
+    service: CreditService, customer: Customer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    statuses: list[str] = []
+    original_save = service.request_repository.save
+    original_update = service.request_repository.update_status
+
+    def record_save(request):
+        statuses.append(request.status_pedido)
+        original_save(request)
+
+    def record_update(request):
+        statuses.append(request.status_pedido)
+        original_update(request)
+
+    monkeypatch.setattr(service.request_repository, "save", record_save)
+    monkeypatch.setattr(service.request_repository, "update_status", record_update)
+
+    service.request_increase(customer, "4000")
+
+    assert statuses == ["pendente", "aprovado"]
 
 
 def test_rejects_above_score_limit(service: CreditService, customer: Customer) -> None:
