@@ -1,8 +1,10 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+from src.exceptions import CreditRequestPersistenceError
 from src.models import CreditRequest
 from src.repositories import CreditRequestRepository, CustomerRepository
 
@@ -56,8 +58,90 @@ def test_credit_request_repository_writes_and_updates(tmp_path: Path) -> None:
 
 
 def test_credit_request_repository_requires_existing_file(tmp_path: Path) -> None:
-    repository = CreditRequestRepository(tmp_path / "missing.csv")
-    with pytest.raises(FileNotFoundError):
+    repository = CreditRequestRepository(tmp_path / "missing.csv", retry_attempts=1)
+    with pytest.raises(CreditRequestPersistenceError):
+        repository.save(_credit_request())
+
+
+def test_credit_request_repository_retries_permission_error(tmp_path: Path) -> None:
+    path = tmp_path / "requests.csv"
+    path.write_text(
+        "cpf_cliente,data_hora_solicitacao,limite_atual,novo_limite_solicitado,status_pedido\n",
+        encoding="utf-8",
+    )
+    repository = CreditRequestRepository(
+        path,
+        retry_attempts=3,
+        retry_delay_seconds=0,
+    )
+    real_open = Path.open
+    attempts = {"count": 0}
+
+    def flaky_open(self, *args, **kwargs):
+        attempts["count"] += 1
+        if attempts["count"] < 3:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_open(self, *args, **kwargs)
+
+    with patch.object(Path, "open", flaky_open):
+        repository.save(_credit_request())
+
+    rows = path.read_text(encoding="utf-8").splitlines()
+    assert len(rows) == 2
+    assert attempts["count"] == 3
+
+
+def test_credit_request_repository_does_not_duplicate_on_retry(tmp_path: Path) -> None:
+    path = tmp_path / "requests.csv"
+    path.write_text(
+        "cpf_cliente,data_hora_solicitacao,limite_atual,novo_limite_solicitado,status_pedido\n",
+        encoding="utf-8",
+    )
+    repository = CreditRequestRepository(path, retry_attempts=3, retry_delay_seconds=0)
+    real_open = Path.open
+    attempts = {"count": 0}
+
+    def flaky_open(self, *args, **kwargs):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_open(self, *args, **kwargs)
+
+    with patch.object(Path, "open", flaky_open):
+        repository.save(_credit_request())
+
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 2
+
+
+def test_credit_request_repository_raises_after_retry_exhaustion(tmp_path: Path) -> None:
+    path = tmp_path / "requests.csv"
+    path.write_text(
+        "cpf_cliente,data_hora_solicitacao,limite_atual,novo_limite_solicitado,status_pedido\n",
+        encoding="utf-8",
+    )
+    repository = CreditRequestRepository(path, retry_attempts=2, retry_delay_seconds=0)
+
+    with (
+        patch.object(Path, "open", side_effect=PermissionError(13, "locked", str(path))),
+        pytest.raises(CreditRequestPersistenceError),
+    ):
+        repository.save(_credit_request())
+
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_credit_request_repository_wraps_os_error(tmp_path: Path) -> None:
+    path = tmp_path / "requests.csv"
+    path.write_text(
+        "cpf_cliente,data_hora_solicitacao,limite_atual,novo_limite_solicitado,status_pedido\n",
+        encoding="utf-8",
+    )
+    repository = CreditRequestRepository(path, retry_attempts=1)
+
+    with (
+        patch.object(Path, "open", side_effect=OSError("disk unavailable")),
+        pytest.raises(CreditRequestPersistenceError),
+    ):
         repository.save(_credit_request())
 
 
