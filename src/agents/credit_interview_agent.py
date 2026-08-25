@@ -2,6 +2,7 @@ from typing import ClassVar
 
 from src.models import CreditInterview
 from src.services.customer_service import CustomerService
+from src.tools.money import parse_money
 
 
 class CreditInterviewAgent:
@@ -46,10 +47,7 @@ class CreditInterviewAgent:
     def _parse(field: str, value: str):
         value = value.strip().lower()
         if field in {"renda_mensal", "despesas_fixas_mensais"}:
-            try:
-                result = float(value.replace(".", "").replace(",", "."))
-            except ValueError as error:
-                raise ValueError("Informe um valor numérico válido.") from error
+            result = parse_money(value)
             if result < 0:
                 raise ValueError("O valor não pode ser negativo.")
             return result

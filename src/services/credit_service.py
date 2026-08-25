@@ -1,10 +1,11 @@
 import csv
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
 
 from src.models import CreditRequest, Customer
 from src.repositories import CreditRequestRepository
+from src.tools.money import parse_money
 
 
 class CreditService:
@@ -25,10 +26,7 @@ class CreditService:
         raise ValueError("No score range found for customer")
 
     def request_increase(self, customer: Customer, requested_limit: str) -> CreditRequest:
-        try:
-            value = Decimal(requested_limit.replace(",", ".").replace("R$", "").strip())
-        except (InvalidOperation, AttributeError) as error:
-            raise ValueError("Informe um valor monetário válido.") from error
+        value = parse_money(requested_limit)
         if value <= 0:
             raise ValueError("O novo limite deve ser maior que zero.")
         request = CreditRequest(
