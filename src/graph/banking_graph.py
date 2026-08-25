@@ -4,12 +4,17 @@ from langgraph.graph import END, START, StateGraph
 
 from src.agents import CreditAgent, CreditInterviewAgent, ExchangeAgent, TriageAgent
 from src.config.settings import settings
+from src.exceptions import CreditRequestPersistenceError
 from src.graph.state import BankingState
 from src.repositories import CreditRequestRepository, CustomerRepository
 from src.services import CreditService, CustomerService, ExchangeService, IntentService
 from src.services.intent_service import deterministic_intent
 from src.tools.authentication import normalize_cpf
 from src.tools.conversation import end_conversation
+
+CREDIT_REQUEST_PERSISTENCE_MESSAGE = (
+    "Não consegui registrar sua solicitação neste momento. Tente novamente em alguns instantes."
+)
 
 
 class BankingGraph:
@@ -161,6 +166,8 @@ class BankingGraph:
             state["current_agent"] = next_agent
         except ValueError as error:
             state["response"] = str(error)
+        except CreditRequestPersistenceError:
+            state["response"] = CREDIT_REQUEST_PERSISTENCE_MESSAGE
         return state
 
     def _handle_interview_offer(self, state: BankingState) -> BankingState:
