@@ -18,6 +18,14 @@ def test_uses_structured_llm_for_natural_language() -> None:
     assert service.classify("queria ver se consigo um limite um pouco maior") == "increase"
 
 
+def test_accepts_nested_structured_llm_payload() -> None:
+    service = IntentService(
+        structured_llm=FakeStructuredLlm({"parameters": {"intent": "exchange"}})
+    )
+
+    assert service.classify("qual moeda você recomenda?") == "exchange"
+
+
 def test_falls_back_when_llm_is_not_configured() -> None:
     assert IntentService().classify("quanto está o euro?") == "exchange"
 
@@ -32,6 +40,12 @@ def test_routes_clear_exchange_request_without_waiting_for_llm() -> None:
     service = IntentService(structured_llm=FakeStructuredLlm(error=TimeoutError("offline")))
 
     assert service.classify("quanto está o euro?") == "exchange"
+
+
+def test_routes_supported_exchange_aliases_without_waiting_for_llm() -> None:
+    service = IntentService(structured_llm=FakeStructuredLlm(error=TimeoutError("offline")))
+
+    assert service.classify("qual a cotação da libra?") == "exchange"
 
 
 def test_falls_back_when_llm_fails() -> None:
