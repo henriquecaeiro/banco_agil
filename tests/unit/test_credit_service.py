@@ -35,27 +35,36 @@ def test_approves_and_persists_request(
     assert "pendente" not in persisted
 
 
-def test_persists_pending_before_analysis(
+def test_persists_only_final_status(
     service: CreditService, customer: Customer, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     statuses: list[str] = []
     original_save = service.request_repository.save
-    original_update = service.request_repository.update_status
 
     def record_save(request):
         statuses.append(request.status_pedido)
         original_save(request)
 
-    def record_update(request):
-        statuses.append(request.status_pedido)
-        original_update(request)
-
     monkeypatch.setattr(service.request_repository, "save", record_save)
-    monkeypatch.setattr(service.request_repository, "update_status", record_update)
 
     service.request_increase(customer, "4000")
 
-    assert statuses == ["pendente", "aprovado"]
+    assert statuses == ["aprovado"]
+
+
+def test_does_not_persist_partial_request_when_analysis_fails(
+    service: CreditService, customer: Customer, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    def fail_analysis(score: int):
+        raise ValueError("score indisponível")
+
+    monkeypatch.setattr(service, "maximum_limit", fail_analysis)
+
+    with pytest.raises(ValueError, match="score indisponível"):
+        service.request_increase(customer, "4000")
+
+    persisted = (tmp_path / "requests.csv").read_text().splitlines()
+    assert len(persisted) == 1
 
 
 def test_rejects_above_score_limit(service: CreditService, customer: Customer) -> None:
@@ -71,7 +80,7 @@ def test_accepts_brazilian_currency_format(service: CreditService, customer: Cus
     assert request.novo_limite_solicitado == 4000
 
 
-@pytest.mark.parametrize("value", ["zero", "0", "-1"])
+@pytest.mark.parametrize("value", ["zero", "0", "-500"])
 def test_rejects_invalid_request_values(
     service: CreditService, customer: Customer, value: str
 ) -> None:
