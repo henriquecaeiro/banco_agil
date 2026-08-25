@@ -21,6 +21,13 @@ def normalize_birth_date(value: str) -> str | None:
         return None
 
 
+def looks_like_birth_date_input(value: str) -> bool:
+    value = value.strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return True
+    return bool(re.fullmatch(r"\d{1,2}/\d{1,2}/\d{4}", value))
+
+
 def authenticate_customer(customer: Customer | None, birth_date: str) -> bool:
     normalized_date = normalize_birth_date(birth_date)
     return customer is not None and normalized_date == customer.data_nascimento

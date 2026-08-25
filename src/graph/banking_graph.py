@@ -9,8 +9,13 @@ from src.graph.state import BankingState
 from src.repositories import CreditRequestRepository, CustomerRepository
 from src.services import CreditService, CustomerService, ExchangeService, IntentService
 from src.services.intent_service import deterministic_intent
-from src.tools.authentication import normalize_cpf
+from src.tools.authentication import looks_like_birth_date_input, normalize_cpf
 from src.tools.conversation import end_conversation
+from src.tools.responses import (
+    AUTH_BIRTH_DATE_MESSAGE,
+    AUTH_REQUIRED_MESSAGE,
+    unsupported_intent_message,
+)
 
 CREDIT_REQUEST_PERSISTENCE_MESSAGE = (
     "Não consegui registrar sua solicitação neste momento. Tente novamente em alguns instantes."
@@ -114,6 +119,10 @@ class BankingGraph:
         return {}
 
     @staticmethod
+    def _should_leave_active_flow(message: str) -> bool:
+        return deterministic_intent(message) in {"exchange", "limit", "increase", "interview"}
+
+    @staticmethod
     def _select_route(state: BankingState) -> str:
         message = state["message"].strip()
         if state.get("conversation_ended"):
@@ -124,8 +133,14 @@ class BankingGraph:
             return "authenticate"
         current_agent = state.get("current_agent")
         if current_agent == "interview":
+            if BankingGraph._should_leave_active_flow(message):
+                state["current_agent"] = None
+                return "intent"
             return "interview"
         if current_agent == "awaiting_limit":
+            if BankingGraph._should_leave_active_flow(message):
+                state["current_agent"] = None
+                return "intent"
             return "credit_request"
         if current_agent == "offer_interview":
             return "interview_offer"
@@ -172,10 +187,12 @@ class BankingGraph:
 
     def _handle_interview_offer(self, state: BankingState) -> BankingState:
         answer = state["message"].strip().lower()
-        if answer in {"sim", "s"}:
+        positive = ("sim", "s", "claro", "pode ser", "quero", "vamos", "ok")
+        negative = ("não", "nao", "n", "agora não", "agora nao", "prefiro não", "prefiro nao", "deixa")
+        if any(token in answer for token in positive):
             state["current_agent"] = "interview"
             state["response"] = self.interview.start(state)
-        elif answer in {"não", "nao", "n"}:
+        elif any(token in answer for token in negative):
             state["current_agent"] = None
             state["response"] = (
                 "Tudo bem. Posso ajudar com outro atendimento ou encerrar quando desejar."
@@ -211,19 +228,24 @@ class BankingGraph:
 
     @staticmethod
     def _unsupported(state: BankingState) -> BankingState:
-        state["response"] = (
-            "Posso ajudar com limite de crédito, aumento de limite, entrevista financeira ou câmbio."
-        )
+        state["response"] = unsupported_intent_message(state["message"])
         return state
 
     def _authenticate(self, state: BankingState, message: str) -> BankingState:
         if not state.get("pending_auth_cpf"):
             cpf = normalize_cpf(message)
             if len(cpf) != 11:
-                state["response"] = "Informe um CPF válido, com 11 dígitos."
+                state["response"] = (
+                    AUTH_REQUIRED_MESSAGE
+                    if deterministic_intent(message) != "unsupported"
+                    else "Informe um CPF válido, com 11 dígitos."
+                )
                 return state
             state["pending_auth_cpf"] = cpf
             state["response"] = "Agora informe sua data de nascimento (DD/MM/AAAA)."
+            return state
+        if not looks_like_birth_date_input(message):
+            state["response"] = AUTH_BIRTH_DATE_MESSAGE
             return state
         state["response"] = self.triage.authenticate(state, state["pending_auth_cpf"], message)
         if (
