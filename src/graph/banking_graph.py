@@ -201,16 +201,34 @@ class BankingGraph:
             state["response"], completed = self.interview.answer(state, state["message"].strip())
             if completed:
                 state["current_agent"] = "credit"
+                pending = state.get("pending_credit_request") or {}
+                requested = pending.get("requested_limit") if isinstance(pending, dict) else None
+                state["pending_credit_request"] = None
+                if requested:
+                    analysis, next_agent = self.credit.request_increase(
+                        state["customer"],
+                        str(requested),
+                        offer_interview=False,
+                    )
+                    state["response"] = (
+                        "Entrevista concluída. Atualizamos sua análise de crédito. " + analysis
+                    )
+                    state["current_agent"] = next_agent
         except ValueError as error:
             state["response"] = str(error)
         return state
 
     def _analyze_credit_request(self, state: BankingState) -> BankingState:
         try:
+            requested_limit = state["message"].strip()
             state["response"], next_agent = self.credit.request_increase(
-                state["customer"], state["message"].strip()
+                state["customer"], requested_limit
             )
             state["current_agent"] = next_agent
+            if next_agent == "offer_interview":
+                state["pending_credit_request"] = {"requested_limit": requested_limit}
+            else:
+                state["pending_credit_request"] = None
         except ValueError as error:
             state["response"] = str(error)
         except CreditRequestPersistenceError:
@@ -220,12 +238,22 @@ class BankingGraph:
     def _handle_interview_offer(self, state: BankingState) -> BankingState:
         answer = state["message"].strip().lower()
         positive = ("sim", "s", "claro", "pode ser", "quero", "vamos", "ok")
-        negative = ("não", "nao", "n", "agora não", "agora nao", "prefiro não", "prefiro nao", "deixa")
+        negative = (
+            "não",
+            "nao",
+            "n",
+            "agora não",
+            "agora nao",
+            "prefiro não",
+            "prefiro nao",
+            "deixa",
+        )
         if any(token in answer for token in positive):
             state["current_agent"] = "interview"
             state["response"] = self.interview.start(state)
         elif any(token in answer for token in negative):
             state["current_agent"] = None
+            state["pending_credit_request"] = None
             state["response"] = (
                 "Tudo bem. Posso ajudar com outro atendimento ou encerrar quando desejar."
             )

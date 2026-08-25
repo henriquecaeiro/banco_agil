@@ -25,12 +25,19 @@ class CreditAgent:
             f"Seu limite de crédito atual é R$ {self.credit_service.current_limit(customer):.2f}."
         )
 
-    def request_increase(self, customer_data: dict, value: str) -> tuple[str, str]:
+    def request_increase(
+        self, customer_data: dict, value: str, *, offer_interview: bool = True
+    ) -> tuple[str, str]:
         customer = Customer(**customer_data)
         request = self.credit_service.request_increase(customer, value)
         if request.status_pedido == "aprovado":
             return ("Seu aumento de limite foi aprovado.", "credit")
+        if offer_interview:
+            return (
+                "Não foi possível aprovar o limite solicitado considerando seu score atual. Deseja fazer uma entrevista financeira?",
+                "offer_interview",
+            )
         return (
-            "Não foi possível aprovar o limite solicitado considerando seu score atual. Deseja fazer uma entrevista financeira?",
-            "offer_interview",
+            "Não foi possível aprovar o limite solicitado considerando seu score atual.",
+            "credit",
         )
