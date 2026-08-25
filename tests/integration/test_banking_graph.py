@@ -53,6 +53,14 @@ def test_three_authentication_failures_end_session(tmp_path: Path) -> None:
     assert state["conversation_ended"] is True
 
 
+def test_customer_can_end_conversation_before_authentication(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    state = build_test_graph(tmp_path).invoke({}, "Quero encerrar.")
+
+    assert state["conversation_ended"] is True
+    assert "encerrado" in state["response"]
+
+
 def test_rejection_interview_and_exchange_flow(tmp_path: Path) -> None:
     setup_data(tmp_path, score=300)
     exchange = ExchangeService(
