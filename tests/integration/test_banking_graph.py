@@ -87,3 +87,12 @@ def test_structured_intent_routes_natural_language(tmp_path: Path) -> None:
 
     assert state["intent"] == "increase"
     assert state["current_agent"] == "awaiting_limit"
+
+
+def test_langgraph_exposes_domain_routing_nodes(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    nodes = BankingGraph(tmp_path).graph.get_graph().nodes
+
+    assert {"route", "authenticate", "identify_intent", "consult_limit", "quote_exchange"} <= set(
+        nodes
+    )
