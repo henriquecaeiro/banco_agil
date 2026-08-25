@@ -3,14 +3,16 @@ from pathlib import Path
 from langgraph.graph import END, START, StateGraph
 
 from src.agents import CreditAgent, CreditInterviewAgent, ExchangeAgent, TriageAgent
+from src.agents.decisions import action_to_intent
 from src.config.settings import settings
 from src.exceptions import CreditRequestPersistenceError
 from src.graph.state import BankingState
 from src.repositories import CreditRequestRepository, CustomerRepository
 from src.services import CreditService, CustomerService, ExchangeService, IntentService
-from src.services.intent_service import deterministic_intent
+from src.services.intent_service import AgentDecisionService
 from src.tools.authentication import looks_like_birth_date_input, normalize_cpf
 from src.tools.conversation import end_conversation
+from src.tools.intents import deterministic_intent
 from src.tools.responses import (
     AUTH_BIRTH_DATE_MESSAGE,
     AUTH_REQUIRED_MESSAGE,
@@ -30,20 +32,29 @@ class BankingGraph:
         intent_service: IntentService | None = None,
     ):
         directory = data_dir or settings.data_dir
+        self.intent_service = intent_service or AgentDecisionService(
+            api_key=settings.gemini_api_key,
+            model=settings.llm_model,
+            temperature=settings.llm_temperature,
+            timeout_seconds=settings.llm_timeout_seconds,
+            max_retries=settings.llm_max_retries,
+        )
         customer_repository = CustomerRepository(directory / "clientes.csv")
-        self.triage = TriageAgent(customer_repository)
+        self.triage = TriageAgent(customer_repository, self.intent_service)
         self.credit = CreditAgent(
             CreditService(
                 directory / "score_limite.csv",
                 CreditRequestRepository(directory / "solicitacoes_aumento_limite.csv"),
-            )
+            ),
+            self.intent_service,
         )
-        self.interview = CreditInterviewAgent(CustomerService(customer_repository))
+        self.interview = CreditInterviewAgent(
+            CustomerService(customer_repository),
+            self.intent_service,
+        )
         self.exchange = ExchangeAgent(
-            exchange_service or ExchangeService(settings.exchange_api_url)
-        )
-        self.intent_service = intent_service or IntentService(
-            api_key=settings.gemini_api_key, model=settings.llm_model
+            exchange_service or ExchangeService(settings.exchange_api_url),
+            self.intent_service,
         )
         self.graph = self._compile()
 
@@ -118,12 +129,33 @@ class BankingGraph:
     def _route_entry(state: BankingState) -> dict:
         return {}
 
-    @staticmethod
-    def _should_leave_active_flow(message: str) -> bool:
-        return deterministic_intent(message) in {"exchange", "limit", "increase", "interview"}
+    def _conversational_agent(self, state: BankingState):
+        current = state.get("current_agent")
+        if current in {"credit", "awaiting_limit", "offer_interview"}:
+            return self.credit
+        if current == "exchange":
+            return self.exchange
+        if current == "interview":
+            return self.interview
+        return self.triage
 
-    @staticmethod
-    def _select_route(state: BankingState) -> str:
+    def _should_leave_active_flow(self, state: BankingState, message: str) -> bool:
+        decision = self._conversational_agent(state).decide(message)
+        if state.get("current_agent") == "interview":
+            return decision.action in {
+                "quote_exchange",
+                "consult_limit",
+                "request_increase",
+                "end",
+            }
+        return decision.action in {
+            "quote_exchange",
+            "consult_limit",
+            "start_interview",
+            "end",
+        }
+
+    def _select_route(self, state: BankingState) -> str:
         message = state["message"].strip()
         if state.get("conversation_ended"):
             return "closed"
@@ -133,12 +165,12 @@ class BankingGraph:
             return "authenticate"
         current_agent = state.get("current_agent")
         if current_agent == "interview":
-            if BankingGraph._should_leave_active_flow(message):
+            if self._should_leave_active_flow(state, message):
                 state["current_agent"] = None
                 return "intent"
             return "interview"
         if current_agent == "awaiting_limit":
-            if BankingGraph._should_leave_active_flow(message):
+            if self._should_leave_active_flow(state, message):
                 state["current_agent"] = None
                 return "intent"
             return "credit_request"
@@ -169,16 +201,34 @@ class BankingGraph:
             state["response"], completed = self.interview.answer(state, state["message"].strip())
             if completed:
                 state["current_agent"] = "credit"
+                pending = state.get("pending_credit_request") or {}
+                requested = pending.get("requested_limit") if isinstance(pending, dict) else None
+                state["pending_credit_request"] = None
+                if requested:
+                    analysis, next_agent = self.credit.request_increase(
+                        state["customer"],
+                        str(requested),
+                        offer_interview=False,
+                    )
+                    state["response"] = (
+                        "Entrevista concluída. Atualizamos sua análise de crédito. " + analysis
+                    )
+                    state["current_agent"] = next_agent
         except ValueError as error:
             state["response"] = str(error)
         return state
 
     def _analyze_credit_request(self, state: BankingState) -> BankingState:
         try:
+            requested_limit = state["message"].strip()
             state["response"], next_agent = self.credit.request_increase(
-                state["customer"], state["message"].strip()
+                state["customer"], requested_limit
             )
             state["current_agent"] = next_agent
+            if next_agent == "offer_interview":
+                state["pending_credit_request"] = {"requested_limit": requested_limit}
+            else:
+                state["pending_credit_request"] = None
         except ValueError as error:
             state["response"] = str(error)
         except CreditRequestPersistenceError:
@@ -188,12 +238,22 @@ class BankingGraph:
     def _handle_interview_offer(self, state: BankingState) -> BankingState:
         answer = state["message"].strip().lower()
         positive = ("sim", "s", "claro", "pode ser", "quero", "vamos", "ok")
-        negative = ("não", "nao", "n", "agora não", "agora nao", "prefiro não", "prefiro nao", "deixa")
+        negative = (
+            "não",
+            "nao",
+            "n",
+            "agora não",
+            "agora nao",
+            "prefiro não",
+            "prefiro nao",
+            "deixa",
+        )
         if any(token in answer for token in positive):
             state["current_agent"] = "interview"
             state["response"] = self.interview.start(state)
         elif any(token in answer for token in negative):
             state["current_agent"] = None
+            state["pending_credit_request"] = None
             state["response"] = (
                 "Tudo bem. Posso ajudar com outro atendimento ou encerrar quando desejar."
             )
@@ -202,7 +262,35 @@ class BankingGraph:
         return state
 
     def _identify_intent(self, state: BankingState) -> BankingState:
-        state["intent"] = self.intent_service.classify(state["message"].strip())
+        message = state["message"].strip()
+        agent = self._conversational_agent(state)
+        decision = agent.decide(message)
+        state["intent"] = action_to_intent(decision.action)
+        state["suggested_currency"] = decision.currency or ""
+        return state
+
+    def _consult_limit(self, state: BankingState) -> BankingState:
+        state["current_agent"] = "credit"
+        state["response"] = self.credit.consult_limit(state["customer"])
+        return state
+
+    @staticmethod
+    def _request_increase(state: BankingState) -> BankingState:
+        state["current_agent"] = "awaiting_limit"
+        state["response"] = "Qual novo limite você deseja solicitar?"
+        return state
+
+    def _start_interview(self, state: BankingState) -> BankingState:
+        state["current_agent"] = "interview"
+        state["response"] = self.interview.start(state)
+        return state
+
+    def _quote_exchange(self, state: BankingState) -> BankingState:
+        state["current_agent"] = "exchange"
+        state["response"] = self.exchange.respond(
+            state["message"],
+            suggested_currency=state.get("suggested_currency"),
+        )
         return state
 
     def _consult_limit(self, state: BankingState) -> BankingState:

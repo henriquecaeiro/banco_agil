@@ -1,16 +1,29 @@
+from src.agents.decisions import AgentDecision
+from src.agents.profiles import TRIAGE_PROFILE
 from src.repositories import CustomerRepository
 from src.tools.authentication import authenticate_customer, normalize_cpf
 from src.tools.conversation import end_conversation
+from src.tools.intents import deterministic_intent
 
 
 class TriageAgent:
-    """Collects credentials and routes only after successful authentication."""
+    """Porta de entrada: autentica de forma determinística e interpreta a necessidade."""
 
-    def __init__(self, customer_repository: CustomerRepository):
+    profile = TRIAGE_PROFILE
+
+    def __init__(self, customer_repository: CustomerRepository, decision_service=None):
         self.customer_repository = customer_repository
+        self.decision_service = decision_service
 
     def greeting(self) -> str:
         return "Olá! Bem-vindo ao Banco Ágil. Para começarmos, poderia informar seu CPF?"
+
+    def decide(self, message: str) -> AgentDecision:
+        if self.decision_service is None:
+            from src.agents.decisions import intent_to_action
+
+            return AgentDecision(action=intent_to_action(deterministic_intent(message)))
+        return self.decision_service.decide(self.profile, message)
 
     def authenticate(self, state: dict, cpf: str, birth_date: str) -> str:
         if state.get("conversation_ended"):

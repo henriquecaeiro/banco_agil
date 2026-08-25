@@ -37,24 +37,30 @@ def test_approves_and_persists_request(
     assert "pendente" not in persisted
 
 
-def test_persists_only_final_status(
+def test_persists_pending_then_final_status(
     service: CreditService, customer: Customer, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     statuses: list[str] = []
     original_save = service.request_repository.save
+    original_update = service.request_repository.update_status
 
     def record_save(request):
-        statuses.append(request.status_pedido)
+        statuses.append(f"save:{request.status_pedido}")
         original_save(request)
 
+    def record_update(request):
+        statuses.append(f"update:{request.status_pedido}")
+        original_update(request)
+
     monkeypatch.setattr(service.request_repository, "save", record_save)
+    monkeypatch.setattr(service.request_repository, "update_status", record_update)
 
     service.request_increase(customer, "4000")
 
-    assert statuses == ["aprovado"]
+    assert statuses == ["save:pendente", "update:aprovado"]
 
 
-def test_does_not_persist_partial_request_when_analysis_fails(
+def test_keeps_pending_request_when_analysis_fails(
     service: CreditService, customer: Customer, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     def fail_analysis(score: int):
@@ -65,12 +71,18 @@ def test_does_not_persist_partial_request_when_analysis_fails(
     with pytest.raises(ValueError, match="score indisponível"):
         service.request_increase(customer, "4000")
 
-    persisted = (tmp_path / "requests.csv").read_text().splitlines()
-    assert len(persisted) == 1
+    persisted = (tmp_path / "requests.csv").read_text()
+    assert "pendente" in persisted
+    assert "aprovado" not in persisted
+    assert "rejeitado" not in persisted
 
 
-def test_rejects_above_score_limit(service: CreditService, customer: Customer) -> None:
-    assert service.request_increase(customer, "6000").status_pedido == "rejeitado"
+def test_rejects_above_score_limit(service: CreditService, customer: Customer, tmp_path: Path) -> None:
+    request = service.request_increase(customer, "6000")
+    assert request.status_pedido == "rejeitado"
+    persisted = (tmp_path / "requests.csv").read_text()
+    assert "rejeitado" in persisted
+    assert "pendente" not in persisted
 
 
 def test_returns_current_limit(service: CreditService, customer: Customer) -> None:

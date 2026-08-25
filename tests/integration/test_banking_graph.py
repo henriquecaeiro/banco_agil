@@ -199,6 +199,7 @@ def test_rejection_interview_and_exchange_flow(tmp_path: Path) -> None:
     for answer in ("9000", "formal", "1000", "0", "não"):
         state = graph.invoke(state, answer)
     assert "concluída" in state["response"]
+    assert "aprovado" in state["response"]
     state = graph.invoke(state, "cotação do dólar")
     assert "5.50" in state["response"]
 
@@ -210,6 +211,7 @@ def test_customer_can_decline_credit_interview(tmp_path: Path) -> None:
         state = graph.invoke(state, message)
 
     assert state["current_agent"] is None
+    assert not state.get("pending_credit_request")
     assert "outro atendimento" in state["response"]
 
 

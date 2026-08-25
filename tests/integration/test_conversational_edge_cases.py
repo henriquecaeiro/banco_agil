@@ -1,3 +1,4 @@
+import csv
 from pathlib import Path
 
 import httpx
@@ -123,3 +124,36 @@ def test_interview_offer_accepts_natural_yes(tmp_path: Path) -> None:
 
     assert state["current_agent"] == "interview"
     assert "renda" in state["response"].lower()
+
+
+def test_rejected_request_is_reanalyzed_after_interview(tmp_path: Path) -> None:
+    setup_data(tmp_path, score=300)
+    graph = build_graph(tmp_path)
+    state = authenticate(graph)
+    state = graph.invoke(state, "quero aumento de limite")
+    state = graph.invoke(state, "9000")
+    state = graph.invoke(state, "sim")
+    for answer in ("9000", "formal", "1000", "0", "não"):
+        state = graph.invoke(state, answer)
+
+    assert "aprovado" in state["response"]
+    assert state["current_agent"] == "credit"
+    assert not state.get("pending_credit_request")
+    with (tmp_path / "solicitacoes_aumento_limite.csv").open(encoding="utf-8", newline="") as file:
+        rows = list(csv.DictReader(file))
+    assert [row["status_pedido"] for row in rows] == ["rejeitado", "aprovado"]
+
+
+def test_reanalysis_does_not_offer_interview_loop(tmp_path: Path) -> None:
+    setup_data(tmp_path, score=300)
+    graph = build_graph(tmp_path)
+    state = authenticate(graph)
+    state = graph.invoke(state, "quero aumento de limite")
+    state = graph.invoke(state, "9000")
+    state = graph.invoke(state, "sim")
+    for answer in ("1000", "desempregado", "5000", "3", "sim"):
+        state = graph.invoke(state, answer)
+
+    assert "aprovado" not in state["response"]
+    assert "Deseja fazer uma entrevista financeira?" not in state["response"]
+    assert state["current_agent"] == "credit"
