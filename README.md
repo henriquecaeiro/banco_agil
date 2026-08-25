@@ -103,3 +103,8 @@ Todos os dados são fictícios. Use, por exemplo:
 | 111.444.777-35 | 15/05/1990 | Ana Silva |
 | 222.333.444-05 | 20/10/1985 | Bruno Costa |
 | 123.456.789-09 | 30/01/1998 | Carla Souza |
+
+## Fluxo de Desenvolvimento
+
+Alterações saem de branches `feat/*`, `fix/*`, `docs/*`, `chore/*` ou `qa/*`, são integradas e
+validadas em `test` e somente então seguem para `master`. Veja [CONTRIBUTING.md](CONTRIBUTING.md).
