@@ -1,10 +1,11 @@
 import re
+from typing import ClassVar
 
 from src.services.exchange_service import ExchangeService
 
 
 class ExchangeAgent:
-    aliases = {
+    aliases: ClassVar = {
         "dólar": "USD",
         "dolar": "USD",
         "usd": "USD",
@@ -28,6 +29,6 @@ class ExchangeAgent:
             return "Informe a moeda que deseja consultar, por exemplo dólar ou euro."
         try:
             rate = self.exchange_service.quote_in_brl(currency)
-        except (ConnectionError, ValueError):
+        except (ConnectionError, TypeError, ValueError):
             return "Não consegui consultar essa cotação agora. Podemos tentar novamente?"
         return f"A cotação de 1 {currency} é R$ {rate:.2f}. Posso ajudar com outra informação?"
