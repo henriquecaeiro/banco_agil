@@ -120,7 +120,11 @@ class BankingGraph:
             state["response"] = "Agora informe sua data de nascimento (DD/MM/AAAA)."
             return state
         state["response"] = self.triage.authenticate(state, state["pending_auth_cpf"], message)
-        if state.get("authenticated") or state.get("conversation_ended"):
+        if (
+            state.get("authenticated")
+            or state.get("conversation_ended")
+            or state.get("authentication_attempts")
+        ):
             state.pop("pending_auth_cpf", None)
         return state
 
