@@ -61,6 +61,19 @@ def test_customer_can_end_conversation_before_authentication(tmp_path: Path) -> 
     assert "encerrado" in state["response"]
 
 
+def test_failed_authentication_requires_a_new_cpf_before_retry(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph = build_test_graph(tmp_path)
+    state = graph.invoke({}, "11144477735")
+    state = graph.invoke(state, "01/01/2000")
+    assert state["pending_auth_cpf"] == ""
+
+    state = graph.invoke(state, "11144477735")
+    assert "data de nascimento" in state["response"]
+    state = graph.invoke(state, "15/05/1990")
+    assert state["authenticated"] is True
+
+
 def test_rejection_interview_and_exchange_flow(tmp_path: Path) -> None:
     setup_data(tmp_path, score=300)
     exchange = ExchangeService(

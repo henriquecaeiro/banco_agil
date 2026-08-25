@@ -224,7 +224,8 @@ class BankingGraph:
             or state.get("conversation_ended")
             or state.get("authentication_attempts")
         ):
-            state.pop("pending_auth_cpf", None)
+            # StateGraph channels retain omitted keys; an empty value explicitly starts a new attempt.
+            state["pending_auth_cpf"] = ""
         return state
 
 
