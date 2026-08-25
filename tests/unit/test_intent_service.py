@@ -28,6 +28,12 @@ def test_routes_clear_increase_request_without_waiting_for_llm() -> None:
     assert service.classify("será que dá pra subir um pouco meu limite?") == "increase"
 
 
+def test_routes_clear_exchange_request_without_waiting_for_llm() -> None:
+    service = IntentService(structured_llm=FakeStructuredLlm(error=TimeoutError("offline")))
+
+    assert service.classify("quanto está o euro?") == "exchange"
+
+
 def test_falls_back_when_llm_fails() -> None:
     service = IntentService(structured_llm=FakeStructuredLlm(error=TimeoutError("offline")))
 
