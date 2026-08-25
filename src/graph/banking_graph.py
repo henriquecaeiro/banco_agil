@@ -89,9 +89,18 @@ class BankingGraph:
                 state["current_agent"] = next_agent
             except ValueError as error:
                 state["response"] = str(error)
-        elif state.get("current_agent") == "offer_interview" and message.lower() in {"sim", "s"}:
-            state["current_agent"] = "interview"
-            state["response"] = self.interview.start(state)
+        elif state.get("current_agent") == "offer_interview":
+            answer = message.lower()
+            if answer in {"sim", "s"}:
+                state["current_agent"] = "interview"
+                state["response"] = self.interview.start(state)
+            elif answer in {"não", "nao", "n"}:
+                state["current_agent"] = None
+                state["response"] = (
+                    "Tudo bem. Posso ajudar com outro atendimento ou encerrar quando desejar."
+                )
+            else:
+                state["response"] = "Deseja fazer a entrevista financeira? Responda sim ou não."
         elif intent == "limit":
             state["current_agent"] = "credit"
             state["response"] = self.credit.consult_limit(state["customer"])

@@ -59,3 +59,13 @@ def test_rejection_interview_and_exchange_flow(tmp_path: Path) -> None:
     assert "concluída" in state["response"]
     state = graph.invoke(state, "cotação do dólar")
     assert "5.50" in state["response"]
+
+
+def test_customer_can_decline_credit_interview(tmp_path: Path) -> None:
+    setup_data(tmp_path, score=300)
+    graph, state = BankingGraph(tmp_path), {}
+    for message in ("11144477735", "15/05/1990", "aumentar limite", "9000", "não"):
+        state = graph.invoke(state, message)
+
+    assert state["current_agent"] is None
+    assert "outro atendimento" in state["response"]
