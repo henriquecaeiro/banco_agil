@@ -7,6 +7,7 @@ import pytest
 
 from src.exceptions import CreditRequestPersistenceError
 from src.graph import BankingGraph
+from src.graph.banking_graph import CREDIT_ANALYSIS_UNAVAILABLE_MESSAGE
 from src.services import ExchangeService
 from src.services.intent_service import IntentService
 
@@ -278,3 +279,29 @@ def test_ambiguous_limit_phrase_asks_consult_or_increase(tmp_path: Path) -> None
     assert state["intent"] == "clarify_limit"
     assert "consultar seu limite atual" in state["response"]
     assert "aumento" in state["response"]
+
+
+def test_missing_score_range_uses_friendly_message(tmp_path: Path) -> None:
+    (tmp_path / "clientes.csv").write_text(
+        "cpf,nome,data_nascimento,score,limite_credito\n11144477735,Ana,1990-05-15,780,5000\n"
+    )
+    (tmp_path / "score_limite.csv").write_text(
+        "score_min,score_max,limite_maximo\n0,100,500\n"
+    )
+    (tmp_path / "solicitacoes_aumento_limite.csv").write_text(
+        "cpf_cliente,data_hora_solicitacao,limite_atual,novo_limite_solicitado,status_pedido\n"
+    )
+    graph, state = build_test_graph(tmp_path), {}
+    state = graph.invoke(state, "11144477735")
+    state = graph.invoke(state, "15/05/1990")
+    state = graph.invoke(state, "quero aumento de limite")
+    state = graph.invoke(state, "8000")
+
+    assert state["response"] == CREDIT_ANALYSIS_UNAVAILABLE_MESSAGE
+    assert "No score range found" not in state["response"]
+    assert "score range" not in state["response"].lower()
+    assert "ValueError" not in state["response"]
+    with (tmp_path / "solicitacoes_aumento_limite.csv").open(encoding="utf-8", newline="") as file:
+        rows = list(csv.DictReader(file))
+    assert len(rows) == 1
+    assert rows[0]["status_pedido"] == "pendente"

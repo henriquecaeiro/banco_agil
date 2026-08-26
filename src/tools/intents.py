@@ -15,7 +15,18 @@ def deterministic_intent(message: str) -> Intent:
     text = message.lower()
     if any(
         word in text
-        for word in ("encerrar", "finalizar", "tchau", "obrigado", "era isso", "deixa pra lá")
+        for word in (
+            "encerrar",
+            "finalizar",
+            "tchau",
+            "obrigado",
+            "era isso",
+            "deixa pra lá",
+            "não quero continuar",
+            "nao quero continuar",
+            "não quero mais continuar",
+            "nao quero mais continuar",
+        )
     ):
         return "end"
     if any(
