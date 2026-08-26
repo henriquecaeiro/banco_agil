@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
+from src.exceptions import CreditAnalysisError
 from src.models import CreditRequest, Customer
 from src.repositories import CreditRequestRepository
 from src.tools.money import parse_money
@@ -23,7 +24,7 @@ class CreditService:
             for row in csv.DictReader(file):
                 if int(row["score_min"]) <= score <= int(row["score_max"]):
                     return Decimal(row["limite_maximo"])
-        raise ValueError("No score range found for customer")
+        raise CreditAnalysisError("No score range found for customer")
 
     def request_increase(self, customer: Customer, requested_limit: str) -> CreditRequest:
         value = parse_money(requested_limit)
