@@ -35,3 +35,20 @@ def test_natural_consult_phrases(message: str) -> None:
 
 def test_ambiguous_credit_phrase_asks_for_clarification() -> None:
     assert deterministic_intent("meu limite") == "clarify_limit"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "encerrar",
+        "finalizar",
+        "tchau",
+        "deixa pra lá",
+        "não quero continuar",
+        "nao quero continuar",
+        "quero encerrar",
+        "não quero mais continuar",
+    ],
+)
+def test_natural_end_phrases(message: str) -> None:
+    assert deterministic_intent(message) == "end"

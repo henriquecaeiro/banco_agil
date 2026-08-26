@@ -2,6 +2,7 @@ import csv
 from pathlib import Path
 
 import httpx
+import pytest
 
 from src.graph import BankingGraph
 from src.services import ExchangeService, IntentService
@@ -41,6 +42,15 @@ def authenticate(graph: BankingGraph, state: dict | None = None) -> dict:
     state = state or {}
     state = graph.invoke(state, "11144477735")
     return graph.invoke(state, "15/05/1990")
+
+
+def reject_and_offer_interview(tmp_path: Path) -> tuple[BankingGraph, dict]:
+    setup_data(tmp_path, score=300)
+    graph = build_graph(tmp_path)
+    state = authenticate(graph)
+    state = graph.invoke(state, "quero aumento de limite")
+    state = graph.invoke(state, "9000")
+    return graph, state
 
 
 def test_kwanza_is_recognized_as_unsupported_currency(tmp_path: Path) -> None:
@@ -157,3 +167,101 @@ def test_reanalysis_does_not_offer_interview_loop(tmp_path: Path) -> None:
     assert "aprovado" not in state["response"]
     assert "Deseja fazer uma entrevista financeira?" not in state["response"]
     assert state["current_agent"] == "credit"
+
+
+@pytest.mark.parametrize(
+    ("message", "currency"),
+    [
+        ("Quanto está o dólar?", "USD"),
+        ("Quanto está o euro?", "EUR"),
+    ],
+)
+def test_interview_offer_switches_to_exchange(tmp_path: Path, message: str, currency: str) -> None:
+    graph, state = reject_and_offer_interview(tmp_path)
+
+    state = graph.invoke(state, message)
+
+    assert currency in state["response"]
+    assert "5.50" in state["response"]
+    assert "renda" not in state["response"].lower()
+    assert state["current_agent"] == "exchange"
+
+
+def test_interview_offer_switches_to_limit_consult(tmp_path: Path) -> None:
+    graph, state = reject_and_offer_interview(tmp_path)
+
+    state = graph.invoke(state, "Qual meu limite?")
+
+    assert "limite de crédito atual" in state["response"].lower()
+    assert state["current_agent"] == "credit"
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["sim", "s", "claro", "pode ser", "ok"],
+)
+def test_interview_offer_accepts_clear_yes(tmp_path: Path, message: str) -> None:
+    graph, state = reject_and_offer_interview(tmp_path)
+
+    state = graph.invoke(state, message)
+
+    assert state["current_agent"] == "interview"
+    assert "renda" in state["response"].lower()
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["não", "agora não"],
+)
+def test_interview_offer_declines_clear_no(tmp_path: Path, message: str) -> None:
+    graph, state = reject_and_offer_interview(tmp_path)
+
+    state = graph.invoke(state, message)
+
+    assert state["current_agent"] is None
+    assert not state.get("pending_credit_request")
+    assert "outro atendimento" in state["response"]
+    assert state.get("conversation_ended") is not True
+
+
+def test_interview_offer_end_phrase_closes_conversation(tmp_path: Path) -> None:
+    graph, state = reject_and_offer_interview(tmp_path)
+
+    state = graph.invoke(state, "não quero continuar")
+
+    assert state["conversation_ended"] is True
+    assert "encerrado" in state["response"].lower()
+    assert "renda" not in state["response"].lower()
+
+
+def test_does_not_continue_during_interview_closes_conversation(tmp_path: Path) -> None:
+    graph, state = reject_and_offer_interview(tmp_path)
+    state = graph.invoke(state, "sim")
+
+    state = graph.invoke(state, "não quero continuar")
+
+    assert state["conversation_ended"] is True
+    assert "encerrado" in state["response"].lower()
+
+
+def test_does_not_continue_while_awaiting_limit_closes_conversation(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph = build_graph(tmp_path)
+    state = authenticate(graph)
+    state = graph.invoke(state, "quero aumento de limite")
+
+    state = graph.invoke(state, "não quero continuar")
+
+    assert state["conversation_ended"] is True
+    assert "encerrado" in state["response"].lower()
+
+
+def test_does_not_continue_after_authentication_closes_conversation(tmp_path: Path) -> None:
+    setup_data(tmp_path)
+    graph = build_graph(tmp_path)
+    state = authenticate(graph)
+
+    state = graph.invoke(state, "não quero continuar")
+
+    assert state["conversation_ended"] is True
+    assert "encerrado" in state["response"].lower()
