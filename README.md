@@ -94,9 +94,21 @@ tests                  testes unitários e de integração
 - Cotação USD, EUR, GBP, ARS e JPY em BRL, com orientação para moedas conhecidas não suportadas.
 - Encerramento de conversa e UI de chat com feedback visual e reinício de sessão.
 
-## Tecnologias Utilizadas
+## Stack e decisões técnicas
 
-Python 3.11+ (suíte executada em 3.11 e 3.14 neste repositório), Streamlit, LangGraph 1.2, Gemini via `langchain-google-genai` 2.x, Pydantic, httpx, python-dotenv, pytest e ruff.
+| Tecnologia | Papel e motivo da escolha |
+| --- | --- |
+| Python 3.11+ | Base da aplicação e das regras determinísticas. Ecossistema simples para IA e integrações. |
+| LangGraph | Orquestra estado, nodes e handoffs entre agentes. O atendimento tem várias etapas e precisa de contexto entre mensagens. |
+| LangChain / langchain-google-genai | Integração com o Gemini (`ChatGoogleGenerativeAI`) e saída estruturada. Não conduz o fluxo. |
+| Gemini | Interpreta a linguagem e escolhe uma ação no escopo do agente. Não autentica, não calcula score, não aprova crédito e não grava CSV. |
+| Pydantic | Valida a saída estruturada do modelo antes de executar a ação. |
+| Streamlit | Interface de chat simples, para o desafio ficar nos agentes e não no frontend. |
+| CSV | Persistência alinhada ao recorte demonstrativo do desafio. |
+| httpx | Cliente HTTP da API de câmbio. |
+| pytest | Testes de regras, fluxos e regressões. |
+
+LangGraph orquestra o estado da conversa e os handoffs. O LangChain entra na integração com o Gemini e na saída estruturada do modelo.
 
 ## Configuração do modelo
 
@@ -108,10 +120,6 @@ Python 3.11+ (suíte executada em 3.11 e 3.14 neste repositório), Streamlit, La
 | `LLM_MAX_RETRIES` | `1` | Uma retentativa curta; depois o fallback local assume. |
 
 A saída é estruturada (`action`, `currency` opcional) e validada contra o perfil do agente.
-
-## Escolhas Técnicas e Justificativas
-
-LangGraph concentra estado e handoffs. Gemini não aprova crédito, não calcula score, não autentica e não grava CSV: essas regras precisam permanecer determinísticas, testáveis e auditáveis. CSV mantém o desafio simples. Pydantic valida dados estruturados. Repositories isolam persistência e services concentram crédito e integrações.
 
 ## Desafios Enfrentados e Como Foram Resolvidos
 
